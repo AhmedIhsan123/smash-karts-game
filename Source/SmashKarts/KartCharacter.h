@@ -46,11 +46,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Kart|Input")
 	TObjectPtr<UInputAction> SteerAction;
 
+
 	// --- Tuning ---
 	// Degrees per second at full speed. EditDefaultsOnly = editable in the BP's Class Defaults.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Kart|Steering", meta = (ClampMin = "0"))
 	float TurnRate = 80.f;
 
+	// Forward speed (cm/s) at which steering reaches full strength.
+	// Below this, steering ramps up from 0; above it, steering is full.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Kart|Steering", meta = (ClampMin = "1"))
+	float SteerSpeed = 350.f;
 private:	
 	// --- Components ---
 	// VisibleAnywhere: you can see and edit the component's settings in BP, but can't swap the component itself.

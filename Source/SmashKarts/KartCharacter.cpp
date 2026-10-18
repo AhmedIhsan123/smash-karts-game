@@ -112,7 +112,7 @@ void AKartCharacter::Steer(const FInputActionValue& Value)
 	const float Axis = Value.Get<float>(); // -1 (A) to +1 (D)
 	const float DeltaSeconds = GetWorld()->GetDeltaSeconds(); // The world delta seconds
 	const float Dot = FVector::DotProduct(GetVelocity(), GetActorForwardVector());
-	const float SpeedFactor = FMath::Clamp(FMath::Abs(Dot) / GetCharacterMovement()->MaxWalkSpeed, 0.f, 1.f);
+	const float SpeedFactor = FMath::Clamp(FMath::Abs(Dot) / SteerSpeed, 0.f, 1.f);
 	const float DirectionSign = (Dot < 0.f) ? -1.f : 1.f;
 
 	// --- DEBUG: remove once the jitter is fixed ---
