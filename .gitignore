@@ -17,6 +17,7 @@
 *.opensdf
 *.VC.db
 *.VC.opendb
+*.slnx
 
 # --- Other IDEs ---
 .idea/
