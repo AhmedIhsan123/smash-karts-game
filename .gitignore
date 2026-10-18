@@ -1,0 +1,28 @@
+# --- Unreal generated (rebuilt automatically) ---
+/Binaries/
+/Intermediate/
+/Saved/
+/DerivedDataCache/
+/Plugins/**/Binaries/
+/Plugins/**/Intermediate/
+
+# --- Packaged builds (we'll output builds here in Week 6) ---
+/Packaged/
+
+# --- Visual Studio (regenerated via "Generate Visual Studio project files") ---
+.vs/
+*.sln
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+
+# --- Other IDEs ---
+.idea/
+.vscode/
+
+# --- OS junk ---
+Thumbs.db
+Desktop.ini
+.DS_Store
