@@ -24,7 +24,7 @@ class SMASHKARTS_API AKartCharacter : public ACharacter
 public:
 	// Sets default values for this character's properties
 	// Constructor, this is when components are built
-	AKartCharacter();
+	AKartCharacter(const FObjectInitializer& ObjectInitializer);
 
 protected:
 	// Called when the game starts or when spawned
@@ -50,7 +50,7 @@ protected:
 	// --- Tuning ---
 	// Degrees per second at full speed. EditDefaultsOnly = editable in the BP's Class Defaults.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Kart|Steering", meta = (ClampMin = "0"))
-	float TurnRate = 80.f;
+	float TurnRate = 50.f;
 
 	// Forward speed (cm/s) at which steering reaches full strength.
 	// Below this, steering ramps up from 0; above it, steering is full.

@@ -14,9 +14,12 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "KartMovementComponent.h"
+
 
 // Sets default values
-AKartCharacter::AKartCharacter()
+AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer) 
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UKartMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	// The kart doesn't need per-frame logic of its own: CMC ticks itself.
