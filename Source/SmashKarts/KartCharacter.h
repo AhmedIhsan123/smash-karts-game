@@ -27,7 +27,6 @@ public:
 	AKartCharacter(const FObjectInitializer& ObjectInitializer);
 
 protected:
-	// Called when the game starts or when spawned
 	// "virtual ... override" = overriding a parent method
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void NotifyControllerChanged() override;
@@ -50,7 +49,7 @@ protected:
 	// --- Tuning ---
 	// Degrees per second at full speed. EditDefaultsOnly = editable in the BP's Class Defaults.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Kart|Steering", meta = (ClampMin = "0"))
-	float TurnRate = 50.f;
+	float TurnRate = 40.f;
 
 	// Forward speed (cm/s) at which steering reaches full strength.
 	// Below this, steering ramps up from 0; above it, steering is full.

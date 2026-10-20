@@ -21,7 +21,6 @@
 AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UKartMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	// The kart doesn't need per-frame logic of its own: CMC ticks itself.
 	PrimaryActorTick.bCanEverTick = false;
 
@@ -41,9 +40,10 @@ AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer)
 
 	// STATIC MESH KART
 	KartMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("KartMesh"));
-	KartMesh->SetupAttachment(GetCapsuleComponent());
+	KartMesh->SetupAttachment(GetMesh());
 	// Visual only: the capsule does the collision, so the mesh shouldn't snag on walls
 	KartMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	// SPRING ARM
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
@@ -52,20 +52,12 @@ AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer)
 	SpringArm->SetRelativeRotation(FRotator(-20.f, 0.f, 0.f));  // Pitch, Yaw, Roll: look down 20°
 	SpringArm->bUsePawnControlRotation = false;  // Follow the kart's rotation, not the mouse
 	SpringArm->bEnableCameraLag = true;          // Smooths out jitter
-	SpringArm->CameraLagSpeed = 12.f;
+	SpringArm->CameraLagSpeed = 8.f;
 
 	// CAMERA
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);  // Attach to the arm's end
 	Camera->bUsePawnControlRotation = false;
-
-	// --- Movement tuning (starting values; we'll tune by feel) ---
-	UCharacterMovementComponent* Move = GetCharacterMovement();
-	Move->bOrientRotationToMovement = false;  // WE control rotation via steering, not CMC
-	Move->MaxWalkSpeed = 1200.f;              // Top speed (cm/s)
-	Move->MaxAcceleration = 1500.f;           // How fast you reach top speed
-	Move->BrakingDecelerationWalking = 800.f; // How fast you coast to a stop with no input
-	Move->GroundFriction = 2.f;               // Low = velocity lags behind facing = a bit of slide
 }
 
 void AKartCharacter::NotifyControllerChanged() 
@@ -118,15 +110,9 @@ void AKartCharacter::Steer(const FInputActionValue& Value)
 	const float SpeedFactor = FMath::Clamp(FMath::Abs(Dot) / SteerSpeed, 0.f, 1.f);
 	const float DirectionSign = (Dot < 0.f) ? -1.f : 1.f;
 
-	// --- DEBUG: remove once the jitter is fixed ---
-	if (GEngine)
+	// Only apply controller yaw input when on the ground. In the air, we don't want to change facing direction.
+	if (!GetCharacterMovement()->IsFalling())
 	{
-		GEngine->AddOnScreenDebugMessage(
-			1,                  // Key: same line every frame (no flooding)
-			0.f,                // Show for one frame; it's rewritten each frame
-			FColor::Yellow,
-			FString::Printf(TEXT("Sign: %.0f   Dot: %.1f   SpeedFactor: %.2f"), DirectionSign, Dot, SpeedFactor));
+		AddControllerYawInput(Axis * TurnRate * DeltaSeconds * SpeedFactor * DirectionSign);
 	}
-
-	AddControllerYawInput(Axis * TurnRate * DeltaSeconds * SpeedFactor * DirectionSign);
 }

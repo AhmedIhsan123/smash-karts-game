@@ -15,10 +15,11 @@ class SMASHKARTS_API UKartMovementComponent : public UCharacterMovementComponent
 	GENERATED_BODY()
 
 public:
+	UKartMovementComponent();
+	
 	// How fast velocity swings toward the kart's facing while coasting (higher = snappier)
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Kart|Coasting", meta = (ClampMin = "0"))
-	float CoastAlignRate = 5.f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Kart|Coasting", meta = (ClampMin = "0"))
+	float CoastAlignRate;
 
 	virtual void CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration) override;
 };

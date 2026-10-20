@@ -3,6 +3,22 @@
 
 #include "KartMovementComponent.h"
 
+// Kart tuning defaults live here; BP_Kart only holds asset references
+UKartMovementComponent::UKartMovementComponent() 
+{
+	MaxWalkSpeed = 900.f;
+	MaxAcceleration = 600.f;
+	BrakingDecelerationWalking = 100.f;
+	BrakingFrictionFactor = 1.f;
+	GroundFriction = 0.75f;
+	GravityScale = 0.5f;
+	AirControl = 0.f;
+	MaxStepHeight = 30.f;
+	CoastAlignRate = 1.6f;
+	bOrientRotationToMovement = false;
+	SetWalkableFloorAngle(50.f);
+}
+
 void UKartMovementComponent::CalcVelocity(float DeltaTime, float Friction, bool bFluid, float BrakingDeceleration)
 {
 	// Custom behavior: if the player is not pressing any input, we want to align the velocity with the kart's facing direction.
