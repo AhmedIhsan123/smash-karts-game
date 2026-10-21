@@ -7,14 +7,14 @@
 UKartMovementComponent::UKartMovementComponent() 
 {
 	MaxWalkSpeed = 900.f;
-	MaxAcceleration = 600.f;
+	MaxAcceleration = 400.f;
 	BrakingDecelerationWalking = 100.f;
-	BrakingFrictionFactor = 1.f;
-	GroundFriction = 0.75f;
+	BrakingFrictionFactor = 0.3f;
+	GroundFriction = 1.5f;
 	GravityScale = 0.5f;
 	AirControl = 0.f;
 	MaxStepHeight = 30.f;
-	CoastAlignRate = 1.6f;
+	CoastAlignRate = 1.5f;
 	bOrientRotationToMovement = false;
 	SetWalkableFloorAngle(50.f);
 }

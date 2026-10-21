@@ -53,20 +53,20 @@ protected:
 	// --- Tuning ---
 	// Degrees per second at full speed. EditDefaultsOnly = editable in the BP's Class Defaults.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Kart|Steering", meta = (ClampMin = "0"))
-	float TurnRate = 40.f;
+	float TurnRate;
 
 	// Forward speed (cm/s) at which steering reaches full strength.
 	// Below this, steering ramps up from 0; above it, steering is full.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Kart|Steering", meta = (ClampMin = "1"))
-	float SteerSpeed = 350.f;
+	float SteerSpeed;
 
 	// The rate at which steering ramps to full turn rate (higher = faster turn rate speed ramp up)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Kart|Steering", meta = (ClampMin = "0"))
-	float SteerRampUpRate = 3.f;
+	float SteerRampUpRate;
 
 	// The rate at which the steering will return to forward when releasing steer keys (higher = faster snap)
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Kart|Steering", meta = (ClampMin = "0"))
-	float SteerReturnRate = 5.f;
+	float SteerReturnRate;
 
 
 private:	

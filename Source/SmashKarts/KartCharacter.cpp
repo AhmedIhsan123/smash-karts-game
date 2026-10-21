@@ -15,10 +15,11 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "KartMovementComponent.h"
+#include "Engine/Engine.h"
 
 
 // Sets default values
-AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer) 
+AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UKartMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
 	// Tick drives steering smoothing
@@ -58,9 +59,15 @@ AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer)
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);  // Attach to the arm's end
 	Camera->bUsePawnControlRotation = false;
+
+	// Kart feel defaults
+	TurnRate = 40.f;
+	SteerSpeed = 250.f;
+	SteerRampUpRate = 2.f;
+	SteerReturnRate = 3.f;
 }
 
-void AKartCharacter::NotifyControllerChanged() 
+void AKartCharacter::NotifyControllerChanged()
 {
 	Super::NotifyControllerChanged();
 
@@ -80,7 +87,7 @@ void AKartCharacter::NotifyControllerChanged()
 }
 
 // Called to bind functionality to input
-void AKartCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) 
+void AKartCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
@@ -103,18 +110,13 @@ void AKartCharacter::Throttle(const FInputActionValue& Value)
 	AddMovementInput(GetActorForwardVector(), Axis);
 }
 
-void AKartCharacter::Steer(const FInputActionValue& Value)
-{
-	const float Axis = Value.Get<float>(); // -1 (A) to +1 (D)
-	RawSteerInput = Axis;
-}
+// Set the raw steer input to a value -1 to +1
+void AKartCharacter::Steer(const FInputActionValue& Value) { RawSteerInput = Value.Get<float>(); } // -1 (A) to +1 (D)
 
-void AKartCharacter::SteerReleased() 
-{
-	RawSteerInput = 0.f;
-}
+// When steering is released, set the raw steer input to 0
+void AKartCharacter::SteerReleased() { RawSteerInput = 0.f; }
 
-void AKartCharacter::Tick(float DeltaSeconds) 
+void AKartCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
@@ -127,11 +129,29 @@ void AKartCharacter::Tick(float DeltaSeconds)
 	// Move CurrentSteer toward RawSteerInput at a steady speed of Rate units per second
 	CurrentSteer = FMath::FInterpConstantTo(CurrentSteer, RawSteerInput, DeltaSeconds, Rate);
 
-	const float Dot = FVector::DotProduct(GetVelocity(), GetActorForwardVector());
-	const float SpeedFactor = FMath::Clamp(FMath::Abs(Dot) / SteerSpeed, 0.f, 1.f);
-	const float DirectionSign = (Dot < 0.f) ? -1.f : 1.f;
+	// Speed along the kart's nose (cm/s). Positive = driving forward, negative = reversing.
+	// Sideways sliding doesn't count, so it drops toward 0 in a hard slide.
+	const float ForwardSpeed = FVector::DotProduct(GetVelocity(), GetActorForwardVector());
 
-	// Only apply controller yaw input when on the ground. In the air, we don't want to change facing direction.
+	// Flip steering when reversing, like a real car
+	const float DirectionSign = (ForwardSpeed < 0.f) ? -1.f : 1.f;
+
+	// Steering strength from 0 to 1: none when stopped, full at SteerSpeed and above.
+	// Because it fades to 0 as ForwardSpeed nears 0, the DirectionSign flip near 0 can't cause jitter.
+	const float SpeedFactor = FMath::Clamp(FMath::Abs(ForwardSpeed) / SteerSpeed, 0.f, 1.f);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			1,                // Key: same key replaces the old line instead of stacking (-1 = always new line)
+			0.f,              // Duration in seconds (0 = one frame, good for Tick)
+			FColor::Yellow,
+			FString::Printf(TEXT("Fwd: %.1f  Steer: %.2f  Factor: %.2f  Sign: %.0f"),
+				ForwardSpeed, CurrentSteer, SpeedFactor, DirectionSign));
+	}
+
+	// Only steer on the ground. In the air, we don't want to change facing direction.
+	// No zero-speed check needed: SpeedFactor is already 0 when stopped.
 	if (!GetCharacterMovement()->IsFalling())
 	{
 		AddControllerYawInput(CurrentSteer * TurnRate * DeltaSeconds * SpeedFactor * DirectionSign);
