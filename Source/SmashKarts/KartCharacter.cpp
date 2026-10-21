@@ -21,8 +21,8 @@
 AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer) 
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UKartMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
-	// The kart doesn't need per-frame logic of its own: CMC ticks itself.
-	PrimaryActorTick.bCanEverTick = false;
+	// Tick drives steering smoothing
+	PrimaryActorTick.bCanEverTick = true;
 
 	// --- Collision shape ---
 	// The capsule is the root and handles all collision. Half-height can't be smaller than the radius,
@@ -90,6 +90,7 @@ void AKartCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 		// Triggered fires every frame while the key is held
 		EIC->BindAction(ThrottleAction, ETriggerEvent::Triggered, this, &AKartCharacter::Throttle);
 		EIC->BindAction(SteerAction, ETriggerEvent::Triggered, this, &AKartCharacter::Steer);
+		EIC->BindAction(SteerAction, ETriggerEvent::Completed, this, &AKartCharacter::SteerReleased);
 	}
 }
 
@@ -105,7 +106,27 @@ void AKartCharacter::Throttle(const FInputActionValue& Value)
 void AKartCharacter::Steer(const FInputActionValue& Value)
 {
 	const float Axis = Value.Get<float>(); // -1 (A) to +1 (D)
-	const float DeltaSeconds = GetWorld()->GetDeltaSeconds(); // The world delta seconds
+	RawSteerInput = Axis;
+}
+
+void AKartCharacter::SteerReleased() 
+{
+	RawSteerInput = 0.f;
+}
+
+void AKartCharacter::Tick(float DeltaSeconds) 
+{
+	Super::Tick(DeltaSeconds);
+
+	// Only the owning player has input; other copies of this kart skip steering.
+	if (!IsLocallyControlled()) return;
+
+	// Pick how fast CurrentSteer moves: ramp up while a key is held, ease back when released
+	const float Rate = FMath::IsNearlyZero(RawSteerInput) ? SteerReturnRate : SteerRampUpRate;
+
+	// Move CurrentSteer toward RawSteerInput at a steady speed of Rate units per second
+	CurrentSteer = FMath::FInterpConstantTo(CurrentSteer, RawSteerInput, DeltaSeconds, Rate);
+
 	const float Dot = FVector::DotProduct(GetVelocity(), GetActorForwardVector());
 	const float SpeedFactor = FMath::Clamp(FMath::Abs(Dot) / SteerSpeed, 0.f, 1.f);
 	const float DirectionSign = (Dot < 0.f) ? -1.f : 1.f;
@@ -113,6 +134,6 @@ void AKartCharacter::Steer(const FInputActionValue& Value)
 	// Only apply controller yaw input when on the ground. In the air, we don't want to change facing direction.
 	if (!GetCharacterMovement()->IsFalling())
 	{
-		AddControllerYawInput(Axis * TurnRate * DeltaSeconds * SpeedFactor * DirectionSign);
+		AddControllerYawInput(CurrentSteer * TurnRate * DeltaSeconds * SpeedFactor * DirectionSign);
 	}
 }
