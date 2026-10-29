@@ -33,6 +33,7 @@ protected:
 	// "virtual ... override" = overriding a parent method
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 	virtual void NotifyControllerChanged() override;
+	virtual void BeginPlay() override;
 
 	// Input handlers, called by Enhanced Input when the actions fire
 	void Throttle(const FInputActionValue& Value);
@@ -70,6 +71,9 @@ protected:
 
 
 private:	
+	/** Logs which machine / net role this kart copy is on. Context = where it was called from. */
+	void LogNetState(const TCHAR* Context) const;
+
 	// --- Components ---
 	// VisibleAnywhere: you can see and edit the component's settings in BP, but can't swap the component itself.
 	// AllowPrivateAccess: lets Blueprint read a private member (otherwise BlueprintReadOnly + private = error).
@@ -81,6 +85,10 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> Camera;
+
+	/** Show the on-screen steering debug line (owning player only). */
+	UPROPERTY(EditAnywhere, Category = "Kart|Debug")
+	bool bDebugSteer;
 
 	// Private variables for steering
 	float RawSteerInput = 0.f;

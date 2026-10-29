@@ -2,6 +2,7 @@
 
 // Class header include always comes first
 #include "KartCharacter.h"
+#include "SmashKarts.h"
 
 // The real includes for everything we forward-declared, plus what we call into
 #include "Camera/CameraComponent.h"
@@ -65,12 +66,30 @@ AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer)
 	SteerSpeed = 250.f;
 	SteerRampUpRate = 2.f;
 	SteerReturnRate = 3.f;
+
+	bDebugSteer = false;
+}
+
+void AKartCharacter::LogNetState(const TCHAR* Context) const
+{
+	UE_LOG(LogSmashKarts, Log, TEXT("[%s] %s | Machine: %s | Role: %s | Local: %s"),
+		Context,                                              // const TCHAR* already -> no *
+		*GetName(),                                           // FString -> needs *
+		HasAuthority() ? TEXT("Server") : TEXT("Client"),     // ternary gives const TCHAR* -> no *
+		*UEnum::GetValueAsString(GetLocalRole()),             // FString like "ROLE_Authority" -> needs *
+		IsLocallyControlled() ? TEXT("true") : TEXT("false"));
+}
+
+void AKartCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+	LogNetState(TEXT("BeginPlay"));
 }
 
 void AKartCharacter::NotifyControllerChanged()
 {
 	Super::NotifyControllerChanged();
-
+	LogNetState(TEXT("ControllerChanged"));
 	// C++ version of the BP "Add Mapping Context" node.
 	// "if (Type* X = Cast<Type>(Y))" = cast, null-check, and scope the variable in one line. Very common idiom.
 	if (APlayerController* PC = Cast<APlayerController>(Controller))
@@ -140,7 +159,7 @@ void AKartCharacter::Tick(float DeltaSeconds)
 	// Because it fades to 0 as ForwardSpeed nears 0, the DirectionSign flip near 0 can't cause jitter.
 	const float SpeedFactor = FMath::Clamp(FMath::Abs(ForwardSpeed) / SteerSpeed, 0.f, 1.f);
 
-	if (GEngine)
+	if (bDebugSteer && GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(
 			1,                // Key: same key replaces the old line instead of stacking (-1 = always new line)
