@@ -11,6 +11,7 @@
 // This keeps compile times down: every file that includes us doesn't drag these headers in too.
 class USpringArmComponent;
 class UCameraComponent;
+class UKartHealthComponent;
 class UStaticMeshComponent;
 class UInputAction;
 class UInputMappingContext;
@@ -85,6 +86,9 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> Camera;
+
+	UPROPERTY(VisibleAnywhere, Category = "Kart")
+	TObjectPtr<UKartHealthComponent> HealthComponent;
 
 	/** Show the on-screen steering debug line (owning player only). */
 	UPROPERTY(EditAnywhere, Category = "Kart|Debug")

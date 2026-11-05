@@ -7,6 +7,7 @@
 // The real includes for everything we forward-declared, plus what we call into
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "KartHealthComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -60,6 +61,9 @@ AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer)
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);  // Attach to the arm's end
 	Camera->bUsePawnControlRotation = false;
+
+	// HEALTH COMPONENT
+	HealthComponent = CreateDefaultSubobject<UKartHealthComponent>(TEXT("HealthComponent"));
 
 	// Kart feel defaults
 	TurnRate = 40.f;
