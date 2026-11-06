@@ -12,6 +12,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "KartWeaponComponent.h"
+#include "Engine/DamageEvents.h"
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -64,6 +66,9 @@ AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer)
 
 	// HEALTH COMPONENT
 	HealthComponent = CreateDefaultSubobject<UKartHealthComponent>(TEXT("HealthComponent"));
+
+	// WEAPON COMPONENT
+	WeaponComponent = CreateDefaultSubobject<UKartWeaponComponent>(TEXT("WeaponComponent"));
 
 	// Kart feel defaults
 	TurnRate = 40.f;
@@ -121,6 +126,7 @@ void AKartCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 		EIC->BindAction(ThrottleAction, ETriggerEvent::Triggered, this, &AKartCharacter::Throttle);
 		EIC->BindAction(SteerAction, ETriggerEvent::Triggered, this, &AKartCharacter::Steer);
 		EIC->BindAction(SteerAction, ETriggerEvent::Completed, this, &AKartCharacter::SteerReleased);
+		EIC->BindAction(FireAction, ETriggerEvent::Started, this, &AKartCharacter::Fire);
 	}
 }
 
@@ -178,5 +184,28 @@ void AKartCharacter::Tick(float DeltaSeconds)
 	if (!GetCharacterMovement()->IsFalling())
 	{
 		AddControllerYawInput(CurrentSteer * TurnRate * DeltaSeconds * SpeedFactor * DirectionSign);
+	}
+}
+
+float AKartCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	const float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	// Week 4: Invincible / Spikey checks go here, before health
+	if (HealthComponent && ActualDamage > 0.f)
+	{
+		HealthComponent->ApplyHealthDamage(ActualDamage);
+	}
+	return ActualDamage;
+}
+
+void AKartCharacter::Fire()
+{
+	UE_LOG(LogSmashKarts, Warning, TEXT("[Fire] pressed, has weapon: %s"),
+		(WeaponComponent && WeaponComponent->HasWeapon()) ? TEXT("yes") : TEXT("no"));
+
+	if (WeaponComponent)
+	{
+		WeaponComponent->FirePressed();
 	}
 }

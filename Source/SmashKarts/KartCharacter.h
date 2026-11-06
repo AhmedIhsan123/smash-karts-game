@@ -17,6 +17,7 @@ class UInputAction;
 class UInputMappingContext;
 struct FInputActionValue;
 
+class UKartWeaponComponent;
 UCLASS()
 class SMASHKARTS_API AKartCharacter : public ACharacter
 {
@@ -29,6 +30,12 @@ public:
 
 	// Event tick
 	virtual void Tick(float DeltaSeconds) override;
+
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+	FORCEINLINE UKartWeaponComponent* GetWeaponComponent() const { return WeaponComponent; }
+	FORCEINLINE UKartHealthComponent* GetHealthComponent() const { return HealthComponent; }
+
 
 protected:
 	// "virtual ... override" = overriding a parent method
@@ -50,6 +57,9 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "Kart|Input")
 	TObjectPtr<UInputAction> SteerAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Kart|Input")
+	TObjectPtr<UInputAction> FireAction;
 
 
 	// --- Tuning ---
@@ -90,6 +100,10 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Kart")
 	TObjectPtr<UKartHealthComponent> HealthComponent;
 
+	UPROPERTY(VisibleAnywhere, Category = "Kart")
+	TObjectPtr<UKartWeaponComponent> WeaponComponent;
+
+
 	/** Show the on-screen steering debug line (owning player only). */
 	UPROPERTY(EditAnywhere, Category = "Kart|Debug")
 	bool bDebugSteer;
@@ -97,4 +111,6 @@ private:
 	// Private variables for steering
 	float RawSteerInput = 0.f;
 	float CurrentSteer = 0.f;
+
+	void Fire();
 };
