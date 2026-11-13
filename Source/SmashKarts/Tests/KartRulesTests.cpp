@@ -106,6 +106,25 @@ bool FKartNameSanitizeTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKartLineVolleyTest, "SmashKarts.Rules.LineVolley", KartTestFlags)
+bool FKartLineVolleyTest::RunTest(const FString& Parameters)
+{
+	const float Speed = 2000.f, Pitch = 22.f, G = 980.f, Spacing = 350.f;
+	const float Far = Speed * Speed * FMath::Sin(FMath::DegreesToRadians(2.f * Pitch)) / G;
+	auto DistanceOf = [&](int32 Index)
+	{
+		const float S = Speed * KartRules::LineVolleySpeedScale(Speed, Pitch, G, Index, Spacing);
+		return S * S * FMath::Sin(FMath::DegreesToRadians(2.f * Pitch)) / G;
+	};
+	TestEqual(TEXT("first ball flies the full distance"), KartRules::LineVolleySpeedScale(Speed, Pitch, G, 0, Spacing), 1.f);
+	TestTrue(TEXT("second ball lands one spacing closer"), FMath::IsNearlyEqual(DistanceOf(1), Far - Spacing, 1.f));
+	TestTrue(TEXT("fourth ball lands three spacings closer"), FMath::IsNearlyEqual(DistanceOf(3), Far - 3.f * Spacing, 1.f));
+	TestTrue(TEXT("never closer than 15% of the throw"), FMath::IsNearlyEqual(DistanceOf(20), Far * 0.15f, 1.f));
+	TestEqual(TEXT("no spacing: no change"), KartRules::LineVolleySpeedScale(Speed, Pitch, G, 2, 0.f), 1.f);
+	TestEqual(TEXT("no gravity: no change"), KartRules::LineVolleySpeedScale(Speed, Pitch, 0.f, 2, Spacing), 1.f);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKartContactRulesTest, "SmashKarts.Rules.ContactSmash", KartTestFlags)
 bool FKartContactRulesTest::RunTest(const FString& Parameters)
 {

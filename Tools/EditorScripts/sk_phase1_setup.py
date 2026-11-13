@@ -20,10 +20,10 @@ import sk_common as sk  # noqa: E402
 CORE = "/Game/SmashKarts/Core"
 FX = "/Game/SmashKarts/FX"
 WEAPONS = {
-    # asset folder, data asset, kill-feed / display name, drop weight from the design doc
-    "Rockets": ("/Game/SmashKarts/Weapons/Rockets", "DA_Rockets", "Rockets", 14.0),
-    "Mines": ("/Game/SmashKarts/Weapons/Mines", "DA_Mines", "Mines", 6.0),
-    "MachineGun": ("/Game/SmashKarts/Weapons/MachineGun", "DA_MachineGun", "Machine Gun", 20.0),
+    # asset folder, data asset, kill-feed / display name, drop weight (Nov 12: equal chance, 10 each)
+    "Rockets": ("/Game/SmashKarts/Weapons/Rockets", "DA_Rockets", "Rockets", 10.0),
+    "Mines": ("/Game/SmashKarts/Weapons/Mines", "DA_Mines", "Mines", 10.0),
+    "MachineGun": ("/Game/SmashKarts/Weapons/MachineGun", "DA_MachineGun", "Machine Gun", 10.0),
 }
 PLACEHOLDER_WEIGHT = 10.0  # only replaced while still at the placeholder, so later tuning survives re-runs
 TEST_MAP = "/Game/SmashKarts/Maps/L_Test"

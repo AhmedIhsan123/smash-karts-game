@@ -10,9 +10,9 @@ import sk_common as sk  # noqa: E402
 PROPS = ["display_name", "weapon_class", "projectile_class", "uses", "burst_count", "projectiles_per_shot", "projectile_speed",
          "launch_pitch_degrees", "volley_spread_degrees", "projectile_gravity_scale", "projectile_lifetime", "charge_throw",
          "charge_speed_min", "charge_speed_max", "homing", "homing_acceleration", "stick_on_impact", "spawn_offset",
-         "direct_damage", "splash_radius", "drop_weight"]
-for folder, name in [("Bullets", "DA_Bullets"), ("SeekerMissile", "DA_SeekerMissile"), ("CannonBalls", "DA_CannonBalls"),
-                     ("StickyBomb", "DA_StickyBomb")]:
+         "direct_damage", "splash_radius", "drop_weight", "fire_interval", "burst_interval", "side_spacing", "spread_degrees"]
+for folder, name in [("Rockets", "DA_Rockets"), ("Mines", "DA_Mines"), ("MachineGun", "DA_MachineGun"), ("Bullets", "DA_Bullets"),
+                     ("SeekerMissile", "DA_SeekerMissile"), ("CannonBalls", "DA_CannonBalls"), ("StickyBomb", "DA_StickyBomb")]:
     da = sk.load("/Game/SmashKarts/Weapons/%s/%s" % (folder, name))
     if da is None:
         sk.log("%s MISSING" % name)

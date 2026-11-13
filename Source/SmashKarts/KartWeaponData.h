@@ -120,6 +120,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile", meta = (ClampMin = "0"))
 	float VolleySpreadDegrees = 0.f;
 
+	// >0 (lobbed weapons): the ProjectilesPerShot fly straight ahead and land in a line this far apart (cm).
+	// The first one flies farthest (to the charged distance), each next one lands this much closer
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile", meta = (ClampMin = "0"))
+	float VolleyLineSpacing = 0.f;
+
 	// Direct damage falls off with distance travelled: DirectDamage at the muzzle, DirectDamageFar at MaxRange. 0 = off
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile", meta = (ClampMin = "0"))
 	float MaxRange = 0.f;

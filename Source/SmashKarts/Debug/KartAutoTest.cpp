@@ -544,7 +544,8 @@ namespace
 				}
 				return true;
 			case 202:
-				if (HealthOf(VictimPC) < RecordedHealth)
+				// Wait for the whole burst (the weapon is used up) before swapping weapons
+				if (HealthOf(VictimPC) < RecordedHealth && KartOf(HostPC) && !KartOf(HostPC)->GetWeaponComponent()->HasWeapon())
 				{
 					Next(*FString::Printf(TEXT("bullets hit: %.0f -> %.0f hp"), RecordedHealth, HealthOf(VictimPC)));
 					return true;

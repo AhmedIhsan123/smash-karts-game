@@ -84,6 +84,22 @@ int32 KartRules::PickSpawnIndex(const TArray<float>& Scores, int32 TopN, float R
 	return Order[Pick];
 }
 
+float KartRules::LineVolleySpeedScale(float BaseSpeed, float PitchDegrees, float Gravity, int32 Index, float Spacing, float MinFraction)
+{
+	if (Index <= 0 || Spacing <= 0.f || BaseSpeed <= 0.f || Gravity <= 0.f)
+	{
+		return 1.f;
+	}
+	const float Pitch = FMath::DegreesToRadians(FMath::Clamp(PitchDegrees, 1.f, 89.f));
+	const float FarDistance = FMath::Square(BaseSpeed) * FMath::Sin(2.f * Pitch) / Gravity;
+	if (FarDistance <= KINDA_SMALL_NUMBER)
+	{
+		return 1.f;
+	}
+	const float Distance = FMath::Max(FarDistance - Index * Spacing, FarDistance * FMath::Clamp(MinFraction, 0.01f, 1.f));
+	return FMath::Sqrt(Distance / FarDistance);
+}
+
 FString KartRules::SanitizePlayerName(const FString& InName, int32 MaxLength)
 {
 	FString Out;

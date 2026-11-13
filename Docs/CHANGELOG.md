@@ -2,6 +2,11 @@
 
 ## Unreleased (`finish-game`)
 
+### Checkpoint 2 feedback — Nov 12
+- **Cannon Balls**: no sideways fan; the 4 balls fly straight ahead and land in a line 350 cm apart, the first ball farthest (new `VolleyLineSpacing`, speed per ball from flat-ground ballistics, unit-tested).
+- **Bullets**: one press fires everything: 6 rounds, 0.12 s apart, of 3 bullets side by side (Uses 1, BurstCount 6, ProjectilesPerShot 3).
+- **Drop weights**: every weapon 10 (equal chance). Setup scripts no longer push the old design weights.
+
 ### Phase 3 — Nov 12 (tier 2 weapons)
 - **Bullets**: 9 presses × burst of 3, slight spread, 6000 cm/s, direct damage 7 → 4 over 4000 cm (new range falloff), small splash.
 - **Seeker Missile**: flies straight 0.5 s, then homes on the nearest enemy in a 90° cone within 3500 (replicated target so clients home too; retargets if the target dies).

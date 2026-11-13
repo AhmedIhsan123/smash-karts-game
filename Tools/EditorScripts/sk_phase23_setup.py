@@ -125,26 +125,26 @@ def setup_weapon_data(dts, projectiles):
     projectile_weapon = sk.cpp_class("ProjectileWeapon")
     specs = {
         "DA_Bullets": ("Bullets", dict(
-            display_name=unreal.Text("Bullets"), drop_weight=14.0, uses=9, fire_interval=0.25, burst_count=3, burst_interval=0.07,
-            projectiles_per_shot=1, side_spacing=0.0, projectile_speed=6000.0, spread_degrees=2.5, projectile_gravity_scale=0.0,
+            display_name=unreal.Text("Bullets"), drop_weight=10.0, uses=1, fire_interval=0.25, burst_count=6, burst_interval=0.12,
+            projectiles_per_shot=3, side_spacing=45.0, projectile_speed=6000.0, spread_degrees=2.0, projectile_gravity_scale=0.0,
             projectile_lifetime=0.7, direct_damage=7.0, direct_damage_far=4.0, max_range=4000.0,
             splash_radius=50.0, splash_max_damage=6.0, splash_min_damage=3.0),
             "DT_Bullets", "BP_Bullet"),
         "DA_SeekerMissile": ("SeekerMissile", dict(
-            display_name=unreal.Text("Seeker Missile"), drop_weight=5.0, uses=1, fire_interval=0.4, burst_count=1,
+            display_name=unreal.Text("Seeker Missile"), drop_weight=10.0, uses=1, fire_interval=0.4, burst_count=1,
             projectiles_per_shot=1, projectile_speed=2500.0, spread_degrees=0.0, projectile_gravity_scale=0.0,
             projectile_lifetime=4.0, direct_damage=50.0, splash_radius=250.0, splash_max_damage=25.0, splash_min_damage=5.0,
             homing=True, homing_delay=0.5, homing_cone_degrees=90.0, homing_range=3500.0, homing_acceleration=8000.0),
             "DT_SeekerMissile", "BP_SeekerMissile"),
         "DA_CannonBalls": ("CannonBalls", dict(
-            display_name=unreal.Text("Cannon Balls"), drop_weight=14.0, uses=1, fire_interval=0.4, burst_count=1,
-            projectiles_per_shot=4, volley_spread_degrees=30.0, launch_pitch_degrees=22.0, spread_degrees=0.0,
+            display_name=unreal.Text("Cannon Balls"), drop_weight=10.0, uses=1, fire_interval=0.4, burst_count=1,
+            projectiles_per_shot=4, volley_line_spacing=350.0, launch_pitch_degrees=22.0, spread_degrees=0.0,
             projectile_gravity_scale=1.0, projectile_lifetime=6.0, spawn_offset=unreal.Vector(100.0, 0.0, 60.0),
             charge_throw=True, charge_time=1.0, charge_speed_min=800.0, charge_speed_max=3000.0,
             direct_damage=100.0, splash_radius=425.0, splash_max_damage=45.0, splash_min_damage=5.0),
             "DT_CannonBalls", "BP_CannonBall"),
         "DA_StickyBomb": ("StickyBomb", dict(
-            display_name=unreal.Text("Sticky Bomb"), drop_weight=9.0, uses=1, fire_interval=0.4, burst_count=1,
+            display_name=unreal.Text("Sticky Bomb"), drop_weight=10.0, uses=1, fire_interval=0.4, burst_count=1,
             projectiles_per_shot=1, launch_pitch_degrees=25.0, spread_degrees=0.0, projectile_gravity_scale=1.0,
             projectile_lifetime=10.0, spawn_offset=unreal.Vector(100.0, 0.0, 60.0),
             charge_throw=True, charge_time=1.0, charge_speed_min=800.0, charge_speed_max=3000.0,

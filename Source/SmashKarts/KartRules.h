@@ -34,6 +34,13 @@ namespace KartRules
 	/** Picks randomly among the TopN highest scores. Rand01 is in [0, 1). INDEX_NONE if Scores is empty. */
 	SMASHKARTS_API int32 PickSpawnIndex(const TArray<float>& Scores, int32 TopN, float Rand01);
 
+	/**
+	 * Speed multiplier for ball Index of a lobbed volley that lands in a line: ball 0 flies the full distance
+	 * (BaseSpeed at PitchDegrees), each next ball lands Spacing cm closer (never closer than MinFraction of it).
+	 * Flat-ground ballistics: distance = v^2 sin(2 pitch) / gravity, so speed scales with sqrt(distance).
+	 */
+	SMASHKARTS_API float LineVolleySpeedScale(float BaseSpeed, float PitchDegrees, float Gravity, int32 Index, float Spacing, float MinFraction = 0.15f);
+
 	/** Trims, strips control characters and clamps a player name. Empty input → empty output. */
 	SMASHKARTS_API FString SanitizePlayerName(const FString& InName, int32 MaxLength = 16);
 
