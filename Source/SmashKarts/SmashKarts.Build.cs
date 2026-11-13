@@ -14,7 +14,8 @@ public class SmashKarts : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "EnhancedInput" });
 
-		// UI is built in C++ (UMG widget trees + Slate), FX through Niagara
-		PrivateDependencyModuleNames.AddRange(new string[] { "UMG", "Slate", "SlateCore", "Niagara" });
+		// UI is built in C++ (UMG widget trees + Slate), FX through Niagara,
+		// Sockets for showing the host's addresses, EngineSettings for the default maps
+		PrivateDependencyModuleNames.AddRange(new string[] { "UMG", "Slate", "SlateCore", "Niagara", "Sockets", "EngineSettings" });
 	}
 }

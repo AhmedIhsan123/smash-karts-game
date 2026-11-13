@@ -4,6 +4,7 @@
 #include "UI/KartWidgetBase.h"
 #include "KartScoreboardWidget.generated.h"
 
+class UButton;
 class UTextBlock;
 class UVerticalBox;
 class UWidget;
@@ -29,9 +30,16 @@ private:
 	void Rebuild();
 	UWidget* MakeRow(const TArray<FString>& Cells, const FLinearColor& Color, const FLinearColor* Swatch, int32 FontSize);
 
+	UFUNCTION() void OnPlayAgainClicked();
+	UFUNCTION() void OnLobbyClicked();
+	UFUNCTION() void OnLeaveClicked();
+
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TitleText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FooterText;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> Rows;
+	UPROPERTY(Transient) TObjectPtr<UWidget> ResultsButtons;
+	UPROPERTY(Transient) TObjectPtr<UButton> PlayAgainButton;
+	UPROPERTY(Transient) TObjectPtr<UButton> LobbyButton;
 
 	bool bResults = false;
 	float RefreshAccumulator = 1.f;

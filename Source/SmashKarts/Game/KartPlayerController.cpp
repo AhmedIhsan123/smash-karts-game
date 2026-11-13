@@ -2,6 +2,7 @@
 #include "Game/KartGameMode.h"
 #include "Game/KartGameState.h"
 #include "Game/KartPlayerState.h"
+#include "UI/KartHUD.h"
 #include "Debug/KartAutoTest.h"
 #include "KartCharacter.h"
 #include "KartHealthComponent.h"
@@ -44,11 +45,76 @@ void AKartPlayerController::BuildUIInput()
 	ScoreboardAction = NewObject<UInputAction>(this, TEXT("IA_UI_Scoreboard"));
 	ConfirmAction = NewObject<UInputAction>(this, TEXT("IA_UI_Confirm"));
 	BackAction = NewObject<UInputAction>(this, TEXT("IA_UI_Back"));
+	PauseAction = NewObject<UInputAction>(this, TEXT("IA_UI_Pause"));
 
 	UIMappingContext = NewObject<UInputMappingContext>(this, TEXT("IMC_UI_Runtime"));
 	UIMappingContext->MapKey(ScoreboardAction, EKeys::Tab);
 	UIMappingContext->MapKey(ConfirmAction, EKeys::Enter);
 	UIMappingContext->MapKey(BackAction, EKeys::BackSpace);
+	UIMappingContext->MapKey(PauseAction, EKeys::Escape);
+	UIMappingContext->MapKey(PauseAction, EKeys::P); // Esc stops PIE in the editor; P works everywhere
+}
+
+void AKartPlayerController::OnPausePressed()
+{
+	TogglePauseMenu();
+}
+
+void AKartPlayerController::TogglePauseMenu()
+{
+	if (AKartHUD* KartHUD = GetHUD<AKartHUD>())
+	{
+		KartHUD->SetPauseMenuOpen(!KartHUD->IsPauseMenuOpen());
+		UpdateInputMode();
+	}
+}
+
+bool AKartPlayerController::IsGameInputBlocked() const
+{
+	const AKartHUD* KartHUD = GetHUD<AKartHUD>();
+	return KartHUD && KartHUD->IsPauseMenuOpen();
+}
+
+void AKartPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+	if (IsLocalController())
+	{
+		UpdateInputMode();
+	}
+}
+
+void AKartPlayerController::UpdateInputMode()
+{
+	const AKartHUD* KartHUD = GetHUD<AKartHUD>();
+	const int8 Wanted = (KartHUD && KartHUD->WantsCursor()) ? 1 : 0;
+	if (Wanted == CursorState)
+	{
+		return;
+	}
+	CursorState = Wanted;
+	if (Wanted)
+	{
+		// Keyboard keeps driving (lobby), the mouse can click the overlay buttons
+		FInputModeGameAndUI Mode;
+		Mode.SetHideCursorDuringCapture(false);
+		Mode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		SetInputMode(Mode);
+		bShowMouseCursor = true;
+	}
+	else
+	{
+		SetInputMode(FInputModeGameOnly());
+		bShowMouseCursor = false;
+	}
+}
+
+void AKartPlayerController::Client_ShowDamageNumber_Implementation(FVector_NetQuantize Location, float Amount, bool bKilled)
+{
+	if (AKartHUD* KartHUD = GetHUD<AKartHUD>())
+	{
+		KartHUD->AddDamageNumber(Location, Amount, bKilled);
+	}
 }
 
 void AKartPlayerController::SetupInputComponent()
@@ -62,6 +128,7 @@ void AKartPlayerController::SetupInputComponent()
 		EIC->BindAction(ScoreboardAction, ETriggerEvent::Completed, this, &AKartPlayerController::OnScoreboardReleased);
 		EIC->BindAction(ConfirmAction, ETriggerEvent::Started, this, &AKartPlayerController::OnConfirmPressed);
 		EIC->BindAction(BackAction, ETriggerEvent::Started, this, &AKartPlayerController::OnBackPressed);
+		EIC->BindAction(PauseAction, ETriggerEvent::Started, this, &AKartPlayerController::OnPausePressed);
 	}
 
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))

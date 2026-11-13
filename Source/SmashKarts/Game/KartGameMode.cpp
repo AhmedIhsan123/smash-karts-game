@@ -89,7 +89,7 @@ FString AKartGameMode::InitNewPlayer(APlayerController* NewPlayerController, con
 		PS->ResetMatchStats();
 
 		// Our own option so the engine's machine-name default never shows up. Set by the main menu.
-		FString Requested = KartRules::SanitizePlayerName(UGameplayStatics::ParseOption(Options, TEXT("SKName")));
+		FString Requested = KartRules::SanitizePlayerName(UGameplayStatics::ParseOption(Options, TEXT("SKName")).Replace(TEXT("%20"), TEXT(" ")));
 		if (Requested.IsEmpty())
 		{
 			Requested = FString::Printf(TEXT("Player %d"), PS->GetJoinOrder() + 1);

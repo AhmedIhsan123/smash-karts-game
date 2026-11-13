@@ -51,9 +51,21 @@ public:
 	UFUNCTION(Client, Reliable)
 	void Client_DebugExec(const FString& Command);
 
+	// ---------- Feedback ----------
+	/** Server → attacker: show a floating damage number where the hit landed. */
+	UFUNCTION(Client, Unreliable)
+	void Client_ShowDamageNumber(FVector_NetQuantize Location, float Amount, bool bKilled);
+
 	// ---------- Local UI state ----------
 	bool IsScoreboardHeld() const { return bScoreboardHeld; }
 	bool IsNetOverlayVisible() const { return bShowNetOverlay; }
+
+	/** Local: true while the in-game menu is open, so the kart ignores driving / firing keys. */
+	bool IsGameInputBlocked() const;
+
+	void TogglePauseMenu();
+
+	virtual void PlayerTick(float DeltaTime) override;
 
 	/** True on the machine of the listen-server host (works on clients through the PlayerState flag). */
 	bool IsLocalHost() const;
@@ -83,8 +95,15 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> BackAction;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> PauseAction;
+
+	void OnPausePressed();
+	void UpdateInputMode();
+
 	bool bScoreboardHeld = false;
 	bool bShowNetOverlay = false;
+	int8 CursorState = -1; // -1 unknown, 0 game only, 1 game + UI
 
 	// Development: SK.AutoDrive keeps driving each new kart after a respawn until it runs out
 	double AutoDriveEndTime = 0.0;

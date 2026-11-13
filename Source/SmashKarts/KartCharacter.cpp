@@ -19,6 +19,9 @@
 #include "Game/KartGameMode.h"
 #include "Game/KartGameState.h"
 #include "Game/KartPlayerState.h"
+#include "Game/KartPlayerController.h"
+#include "UI/KartNameTagWidget.h"
+#include "Components/WidgetComponent.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
@@ -82,6 +85,16 @@ AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer)
 
 	// STATUS COMPONENT (freeze, popped tires, buffs, spawn protection)
 	StatusComponent = CreateDefaultSubobject<UKartStatusComponent>(TEXT("StatusComponent"));
+
+	// NAME TAG (screen-space widget above the kart; attached to the mesh so it gets network smoothing)
+	NameTag = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameTag"));
+	NameTag->SetupAttachment(GetMesh());
+	NameTag->SetRelativeLocation(FVector(0.f, 0.f, 150.f));
+	NameTag->SetWidgetSpace(EWidgetSpace::Screen);
+	NameTag->SetDrawSize(FVector2D(160.f, 40.f));
+	NameTag->SetWidgetClass(UKartNameTagWidget::StaticClass());
+	NameTag->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	NameTag->SetGenerateOverlapEvents(false);
 
 	// Kart feel defaults
 	TurnRate = 40.f;
@@ -206,7 +219,7 @@ bool AKartCharacter::IsInputLocked() const
 
 void AKartCharacter::Throttle(const FInputActionValue& Value)
 {
-	if (IsInputLocked())
+	if (IsInputLocked() || IsLocalInputBlockedByUI())
 	{
 		return;
 	}
@@ -217,8 +230,8 @@ void AKartCharacter::Throttle(const FInputActionValue& Value)
 	AddMovementInput(GetActorForwardVector(), Axis);
 }
 
-// Set the raw steer input to a value -1 to +1
-void AKartCharacter::Steer(const FInputActionValue& Value) { RawSteerInput = Value.Get<float>(); } // -1 (A) to +1 (D)
+// Set the raw steer input to a value -1 to +1 (ignored while the in-game menu is open)
+void AKartCharacter::Steer(const FInputActionValue& Value) { RawSteerInput = IsLocalInputBlockedByUI() ? 0.f : Value.Get<float>(); } // -1 (A) to +1 (D)
 
 // When steering is released, set the raw steer input to 0
 void AKartCharacter::SteerReleased() { RawSteerInput = 0.f; }
@@ -234,8 +247,9 @@ void AKartCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	// Every copy: hidden when smashed, blinking while spawn protected
+	// Every copy: hidden when smashed, blinking while spawn protected; name tag
 	UpdateVisibility();
+	UpdateNameTag();
 
 	// Only the owning player has input; other copies of this kart skip steering.
 	if (!IsLocallyControlled()) return;
@@ -380,6 +394,15 @@ float AKartCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageE
 	}
 
 	HealthComponent->ApplyHealthDamage(ActualDamage);
+
+	// Floating damage number for whoever dealt it
+	if (AKartPlayerController* AttackerPC = Cast<AKartPlayerController>(EventInstigator))
+	{
+		if (AttackerPC != GetController())
+		{
+			AttackerPC->Client_ShowDamageNumber(GetActorLocation(), ActualDamage, HealthComponent->GetHealth() <= 0.f);
+		}
+	}
 
 	if (HealthComponent->GetHealth() <= 0.f)
 	{
@@ -553,7 +576,7 @@ void AKartCharacter::OnEliminatedFX_Implementation(bool bBigExplosion)
 
 void AKartCharacter::Fire()
 {
-	if (IsInputLocked() || !WeaponComponent)
+	if (IsInputLocked() || IsLocalInputBlockedByUI() || !WeaponComponent)
 	{
 		return;
 	}
@@ -573,5 +596,34 @@ void AKartCharacter::FireReleased()
 		{
 			WeaponComponent->FireReleased();
 		}
+	}
+}
+
+bool AKartCharacter::IsLocalInputBlockedByUI() const
+{
+	const AKartPlayerController* PC = Cast<AKartPlayerController>(GetController());
+	return PC && PC->IsLocalController() && PC->IsGameInputBlocked();
+}
+
+void AKartCharacter::UpdateNameTag()
+{
+	if (!NameTag)
+	{
+		return;
+	}
+	const bool bShow = !bEliminated && !IsLocallyControlled() && GetPlayerState() != nullptr;
+	if (NameTag->IsVisible() != bShow)
+	{
+		NameTag->SetVisibility(bShow);
+	}
+	if (!bShow)
+	{
+		return;
+	}
+	if (UKartNameTagWidget* Tag = Cast<UKartNameTagWidget>(NameTag->GetUserWidgetObject()))
+	{
+		const AKartPlayerState* PS = GetPlayerState<AKartPlayerState>();
+		const float Fraction = HealthComponent ? HealthComponent->GetHealth() / FMath::Max(1.f, HealthComponent->GetMaxHealth()) : 1.f;
+		Tag->SetInfo(PS ? PS->GetPlayerName() : FString(), Fraction, PS ? PS->GetPlayerColor() : FLinearColor::White);
 	}
 }

@@ -1,6 +1,8 @@
 #include "UI/KartScoreboardWidget.h"
+#include "Game/KartGameInstance.h"
 #include "Game/KartGameState.h"
 #include "Game/KartPlayerController.h"
+#include "Components/Button.h"
 #include "Game/KartPlayerState.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -40,6 +42,21 @@ void UKartScoreboardWidget::BuildTree()
 
 	FooterText = MakeText(TEXT(""), 18, FLinearColor(0.85f, 0.85f, 0.85f));
 	Column->AddChildToVerticalBox(FooterText)->SetHorizontalAlignment(HAlign_Center);
+
+	// Results buttons
+	UHorizontalBox* Buttons = WidgetTree->ConstructWidget<UHorizontalBox>();
+	ResultsButtons = Buttons;
+	PlayAgainButton = MakeButton(TEXT("Play Again"), 22, FLinearColor(0.1f, 0.6f, 0.25f), 200.f);
+	LobbyButton = MakeButton(TEXT("Back to Lobby"), 22, FLinearColor(0.25f, 0.3f, 0.45f), 200.f);
+	UButton* LeaveButton = MakeButton(TEXT("Leave"), 22, FLinearColor(0.55f, 0.15f, 0.15f), 140.f);
+	PlayAgainButton->OnClicked.AddDynamic(this, &UKartScoreboardWidget::OnPlayAgainClicked);
+	LobbyButton->OnClicked.AddDynamic(this, &UKartScoreboardWidget::OnLobbyClicked);
+	LeaveButton->OnClicked.AddDynamic(this, &UKartScoreboardWidget::OnLeaveClicked);
+	Buttons->AddChildToHorizontalBox(PlayAgainButton);
+	Buttons->AddChildToHorizontalBox(LobbyButton)->SetPadding(FMargin(8.f, 0.f));
+	Buttons->AddChildToHorizontalBox(LeaveButton);
+	Column->AddChildToVerticalBox(Buttons)->SetHorizontalAlignment(HAlign_Center);
+	ResultsButtons->SetVisibility(ESlateVisibility::Collapsed);
 }
 
 void UKartScoreboardWidget::SetResultsMode(bool bInResults)
@@ -48,6 +65,41 @@ void UKartScoreboardWidget::SetResultsMode(bool bInResults)
 	{
 		bResults = bInResults;
 		RefreshAccumulator = 1.f; // rebuild now
+		if (ResultsButtons)
+		{
+			ResultsButtons->SetVisibility(bResults ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		}
+	}
+	const AKartPlayerController* PC = Cast<AKartPlayerController>(GetOwningPlayer());
+	const bool bHost = PC && PC->IsLocalHost();
+	if (PlayAgainButton)
+	{
+		PlayAgainButton->SetVisibility(bHost ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		LobbyButton->SetVisibility(bHost ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+}
+
+void UKartScoreboardWidget::OnPlayAgainClicked()
+{
+	if (AKartPlayerController* PC = Cast<AKartPlayerController>(GetOwningPlayer()))
+	{
+		PC->Server_RequestPlayAgain();
+	}
+}
+
+void UKartScoreboardWidget::OnLobbyClicked()
+{
+	if (AKartPlayerController* PC = Cast<AKartPlayerController>(GetOwningPlayer()))
+	{
+		PC->Server_RequestBackToLobby();
+	}
+}
+
+void UKartScoreboardWidget::OnLeaveClicked()
+{
+	if (UKartGameInstance* GI = GetGameInstance<UKartGameInstance>())
+	{
+		GI->LeaveToMainMenu();
 	}
 }
 

@@ -6,6 +6,7 @@
 #if !UE_BUILD_SHIPPING
 
 #include "Game/KartPlayerController.h"
+#include "Game/KartGameInstance.h"
 #include "SmashKarts.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -63,6 +64,36 @@ namespace
 	SK_DEBUG_COMMAND(AutoDrive, "SK.AutoDrive <seconds> [steer -1..1]  your kart drives itself like held keys (local)")
 
 #undef SK_DEBUG_COMMAND
+
+	// Menu / session flow (work from the main menu too: they talk to the game instance, not a kart controller)
+	UKartGameInstance* KartGI(UWorld* World)
+	{
+		return World ? World->GetGameInstance<UKartGameInstance>() : nullptr;
+	}
+
+	static FAutoConsoleCommandWithWorldAndArgs GSKCmd_Host(TEXT("SK.Host"), TEXT("SK.Host  host a game (same as the Host button)"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (UKartGameInstance* GI = KartGI(World)) { GI->HostGame(); }
+		}));
+
+	static FAutoConsoleCommandWithWorldAndArgs GSKCmd_Join(TEXT("SK.Join"), TEXT("SK.Join <ip[:port]>  join a game (same as the Join button)"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (UKartGameInstance* GI = KartGI(World)) { GI->JoinGame(Args.Num() > 0 ? Args[0] : FString()); }
+		}));
+
+	static FAutoConsoleCommandWithWorldAndArgs GSKCmd_Leave(TEXT("SK.Leave"), TEXT("SK.Leave  back to the main menu"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (UKartGameInstance* GI = KartGI(World)) { GI->LeaveToMainMenu(); }
+		}));
+
+	static FAutoConsoleCommandWithWorldAndArgs GSKCmd_Name(TEXT("SK.Name"), TEXT("SK.Name <name>  set your saved player name"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (UKartGameInstance* GI = KartGI(World)) { GI->SetPlayerName(FString::Join(Args, TEXT(" "))); }
+		}));
 }
 
 #endif // !UE_BUILD_SHIPPING

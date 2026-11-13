@@ -18,6 +18,7 @@ class UInputAction;
 class UInputMappingContext;
 class UMaterialInstanceDynamic;
 class UNiagaraSystem;
+class UWidgetComponent;
 class UDamageType;
 struct FInputActionValue;
 
@@ -195,6 +196,12 @@ private:
 	/** Player colour (+ frozen tint) on the body material. Every machine. */
 	void UpdateBodyColor();
 
+	/** Name tag text / health / visibility. Every machine. */
+	void UpdateNameTag();
+
+	/** Local: the in-game menu is open, so ignore driving / firing keys. */
+	bool IsLocalInputBlockedByUI() const;
+
 	void HandleStatusChanged(uint8 OldFlags, uint8 NewFlags);
 
 	// --- Components ---
@@ -217,6 +224,10 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Kart")
 	TObjectPtr<UKartStatusComponent> StatusComponent;
+
+	/** Name + health above the kart (screen space, hidden for your own kart). Cosmetic, every machine. */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UWidgetComponent> NameTag;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> BodyMaterial;

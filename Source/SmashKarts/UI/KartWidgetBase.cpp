@@ -1,6 +1,9 @@
 #include "UI/KartWidgetBase.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/Button.h"
+#include "Components/EditableTextBox.h"
+#include "Components/SizeBox.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/TextBlock.h"
@@ -40,6 +43,42 @@ UTextBlock* UKartWidgetBase::MakeText(const FString& Text, int32 Size, const FLi
 	Block->SetFont(Font);
 	Block->SetColorAndOpacity(FSlateColor(Color));
 	return Block;
+}
+
+UButton* UKartWidgetBase::MakeButton(const FString& Label, int32 FontSize, const FLinearColor& Tint, float MinWidth)
+{
+	UButton* Button = WidgetTree->ConstructWidget<UButton>();
+	Button->SetBackgroundColor(Tint);
+	UTextBlock* Text = MakeText(Label, FontSize, FLinearColor::White, false);
+	Text->SetJustification(ETextJustify::Center);
+	USizeBox* Box = WidgetTree->ConstructWidget<USizeBox>();
+	Box->SetMinDesiredWidth(MinWidth);
+	Box->SetContent(Text);
+	Button->SetContent(Box);
+	return Button;
+}
+
+UEditableTextBox* UKartWidgetBase::MakeTextField(const FString& Text, const FString& Hint)
+{
+	UEditableTextBox* Field = WidgetTree->ConstructWidget<UEditableTextBox>();
+	Field->SetText(FText::FromString(Text));
+	Field->SetHintText(FText::FromString(Hint));
+	return Field;
+}
+
+UWidget* UKartWidgetBase::Sized(UWidget* Child, float Width, float Height)
+{
+	USizeBox* Box = WidgetTree->ConstructWidget<USizeBox>();
+	if (Width > 0.f)
+	{
+		Box->SetWidthOverride(Width);
+	}
+	if (Height > 0.f)
+	{
+		Box->SetHeightOverride(Height);
+	}
+	Box->SetContent(Child);
+	return Box;
 }
 
 UBorder* UKartWidgetBase::MakePanel(const FLinearColor& Color, const FMargin& InPadding)
