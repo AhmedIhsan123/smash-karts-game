@@ -2,6 +2,9 @@
 
 ## Unreleased (`finish-game`)
 
+### Checkpoint 4 — Nov 12
+- Passed: first internet playtest with friends on `L_Arena_01` (v0.5 packaged build): joining, all tier 3 weapons, pit knock-ins, ramps and kicker, two full matches with Play Again.
+
 ### Phase 6 — Nov 12 (arena blockout)
 - **`L_Arena_01`** (built by `Tools/EditorScripts/sk_build_arena.py`, re-runnable): 56 × 56 m inside 6 m walls. Open centre inside a broken ring of 2.5 m cover walls (5 m gaps = choke points for mines and Spike Strips); the ring route around it.
   NE and SW: 8 × 8 m platforms, 1.5 m high, two 18° ramps each (loot box on top). NW and SE: 6 × 6 m pits with 50 cm red curbs: you can't drive in (step height 30 cm), but knockback can throw you in (KillZ −500, falls credit the last attacker).

@@ -51,7 +51,7 @@ Respawn: the dead kart stays possessed and hidden (camera stays put), then is de
 | 3 | Tier 2 weapons | `KartProjectile` (homing, sticky → trap, charge speed), `ProjectileWeapon` (charge), kart Fire Completed binding + charge meter, DA/BP for Bullets, Seeker, Cannon Balls, Sticky Bomb, HUD icons | ✅ CP2 passed Nov 12 (+ feedback applied) |
 | 4 | Menus + direct IP | `Game/KartGameInstance` (net errors, name save), `UI/KartMainMenuWidget`, lobby overlay, pause, settings, colours, name tags, damage numbers, `L_MainMenu`, `Docs/HOSTING.md`, renderer settings | ✅ CP3 passed Nov 12 (packaged, 2 windows + 2-PC LAN) |
 | 5 | Tier 3 weapons | `BuffWeapon`, `KartStatusFXComponent`, trap box trigger + stay + status (Spike Strip), Snowball freeze hit, Tesla zap, Mace Orbit; `sk_phase5_setup.py` | ✅ Nov 12 (self-tested: `SK.AutoTest tier3`) |
-| 6 | Arena | `sk_build_arena.py` → `L_Arena_01` blockout, spawns, loot spots, KillZ, lighting; `SK.AutoTest arena` | 🛑 CP4 (blockout done + self-tested Nov 12; dressing waits for art packs) |
+| 6 | Arena | `sk_build_arena.py` → `L_Arena_01` blockout, spawns, loot spots, KillZ, lighting; `SK.AutoTest arena` | ✅ CP4 passed Nov 12 (internet playtest; dressing waits for art packs) |
 | 7 | EOS | OSS EOS + `NetDriverEOS`, Device ID login, create/find/join by room code, secrets in gitignored `Config/Windows/WindowsEngine.ini` | ⏳ → 🛑 CP5 |
 | 8 | Extras + polish | Nuke, Fake Loot Box, Invincibility, audio, firing feel, balance (reverse cap done in phase 2) | ⏳ |
 | 9 | Ship | packaging, log cleanup, `HOW_TO_PLAY.md`, zip | ⏳ → 🛑 Final |
