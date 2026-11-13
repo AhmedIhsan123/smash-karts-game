@@ -60,7 +60,7 @@ namespace
 	SK_DEBUG_COMMAND(Lobby, "SK.Lobby  back to the lobby (host)")
 	SK_DEBUG_COMMAND(State, "SK.State  log match state and scores (server log)")
 	SK_DEBUG_COMMAND(ShowNet, "SK.ShowNet  toggle the net role / ping overlay (local)")
-	SK_DEBUG_COMMAND(AutoTest, "SK.AutoTest <players> [quit] [loop|status|weapons|tier3]  scripted match test on the host; results in the log")
+	SK_DEBUG_COMMAND(AutoTest, "SK.AutoTest <players> [quit] [loop|status|weapons|tier3|arena]  scripted match test on the host; results in the log")
 	SK_DEBUG_COMMAND(AutoDrive, "SK.AutoDrive <seconds> [steer -1..1]  your kart drives itself like held keys (local)")
 
 #undef SK_DEBUG_COMMAND

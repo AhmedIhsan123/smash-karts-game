@@ -14,9 +14,12 @@
 #include "KartHealthComponent.h"
 #include "KartStatusComponent.h"
 #include "KartTrap.h"
+#include "LootBox.h"
 #include "SmashKarts.h"
 #include "Containers/Ticker.h"
 #include "EngineUtils.h"
+#include "Engine/TargetPoint.h"
+#include "GameFramework/PlayerStart.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/DamageType.h"
@@ -32,14 +35,16 @@ namespace
 		FAutoTestRunner(UWorld* InWorld, int32 InExpected, bool bInQuit, const FString& InScenario)
 			: World(InWorld), Expected(FMath::Max(2, InExpected)), bQuit(bInQuit), bStatusScenario(InScenario.Equals(TEXT("status"), ESearchCase::IgnoreCase)), bWeaponsScenario(InScenario.Equals(TEXT("weapons"), ESearchCase::IgnoreCase))
 			, bTier3Scenario(InScenario.Equals(TEXT("tier3"), ESearchCase::IgnoreCase))
+			, bArenaScenario(InScenario.Equals(TEXT("arena"), ESearchCase::IgnoreCase))
 		{
 		}
 
 		void Begin()
 		{
 			StepStart = FPlatformTime::Seconds();
-			UE_LOG(LogSmashKarts, Log, TEXT("[AutoTest] Started (%s), waiting for %d players"),
-				bStatusScenario ? TEXT("status") : (bWeaponsScenario ? TEXT("weapons") : (bTier3Scenario ? TEXT("tier3") : TEXT("loop"))), Expected);
+			const TCHAR* Name = bStatusScenario ? TEXT("status") : bWeaponsScenario ? TEXT("weapons") : bTier3Scenario ? TEXT("tier3")
+				: bArenaScenario ? TEXT("arena") : TEXT("loop");
+			UE_LOG(LogSmashKarts, Log, TEXT("[AutoTest] Started (%s), waiting for %d players"), Name, Expected);
 			TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FAutoTestRunner::Tick), 0.1f);
 		}
 
@@ -68,7 +73,12 @@ namespace
 		bool bStatusScenario = false;
 		bool bWeaponsScenario = false;
 		bool bTier3Scenario = false;
+		bool bArenaScenario = false;
 		float RecordedHealth = 0.f;
+		TArray<TWeakObjectPtr<AActor>> DriveTests;
+		int32 DriveIndex = 0;
+		double DriveStartZ = 0.0;
+		double DriveMaxZ = 0.0;
 		FVector RecordedLocation = FVector::ZeroVector;
 
 		AKartGameMode* GM() const { return World.IsValid() ? World->GetAuthGameMode<AKartGameMode>() : nullptr; }
@@ -180,6 +190,10 @@ namespace
 						return Fail(TEXT("KillZ is not set on this map (World Settings)"));
 					}
 					Next(TEXT("players joined, lobby, karts alive"));
+					if (bArenaScenario)
+					{
+						Step = 400; // map checks run in the lobby, no match needed
+					}
 					return true;
 				}
 				return Timeout(120.f, TEXT("players"));
@@ -828,6 +842,118 @@ namespace
 					return true;
 				}
 				return Timeout(1.5f, TEXT("spike strip catch"));
+			}
+
+			// ================= Arena scenario (phase 6): map sanity + drivability =================
+			case 400:
+			{
+				FCollisionQueryParams Params(SCENE_QUERY_STAT(AutoTestArena), false);
+				for (TActorIterator<AKartCharacter> It(World.Get()); It; ++It)
+				{
+					Params.AddIgnoredActor(*It);
+				}
+				FString Problems;
+				int32 Starts = 0;
+				int32 Boxes = 0;
+				for (TActorIterator<APlayerStart> It(World.Get()); It; ++It)
+				{
+					++Starts;
+					const FVector Loc = It->GetActorLocation();
+					if (World->OverlapBlockingTestByChannel(Loc, FQuat::Identity, ECC_Pawn, FCollisionShape::MakeCapsule(55.f, 55.f), Params))
+					{
+						Problems += FString::Printf(TEXT(" %s is inside geometry;"), *It->GetActorNameOrLabel());
+					}
+					FHitResult Hit;
+					if (!World->LineTraceSingleByChannel(Hit, Loc, Loc - FVector(0.f, 0.f, 300.f), ECC_Visibility, Params) || Hit.ImpactPoint.Z < -20.f)
+					{
+						Problems += FString::Printf(TEXT(" %s has no floor under it;"), *It->GetActorNameOrLabel());
+					}
+				}
+				for (TActorIterator<ALootBox> It(World.Get()); It; ++It)
+				{
+					++Boxes;
+					const FVector Loc = It->GetActorLocation();
+					FHitResult Hit;
+					if (!World->LineTraceSingleByChannel(Hit, Loc, Loc - FVector(0.f, 0.f, 200.f), ECC_Visibility, Params))
+					{
+						Problems += FString::Printf(TEXT(" %s floats (no floor within 2 m);"), *It->GetActorNameOrLabel());
+					}
+				}
+				if (Starts < 8)
+				{
+					Problems += FString::Printf(TEXT(" only %d PlayerStarts (need 8+);"), Starts);
+				}
+				if (Boxes < 8)
+				{
+					Problems += FString::Printf(TEXT(" only %d loot boxes (need 8+);"), Boxes);
+				}
+				if (!Problems.IsEmpty())
+				{
+					return Fail(TEXT("map problems:") + Problems);
+				}
+				for (TActorIterator<ATargetPoint> It(World.Get()); It; ++It)
+				{
+					if (It->ActorHasTag(TEXT("SKRampTest")) || It->ActorHasTag(TEXT("SKKickerTest")))
+					{
+						DriveTests.Add(*It);
+					}
+				}
+				Next(*FString::Printf(TEXT("%d PlayerStarts clear and on the floor, %d loot boxes on the floor, %d drive tests"), Starts, Boxes, DriveTests.Num()));
+				DriveIndex = 0;
+				return true;
+			}
+			case 401:
+			{
+				AKartCharacter* Host = KartOf(HostPC);
+				if (!DriveTests.IsValidIndex(DriveIndex))
+				{
+					if (Host)
+					{
+						Host->SetDebugAutoDrive(0.f, 0.f);
+					}
+					Step = 13; // done: lobby check + PASS
+					return true;
+				}
+				const AActor* Point = DriveTests[DriveIndex].Get();
+				if (!Point || !Host || Host->IsEliminated())
+				{
+					return Fail(TEXT("drive test marker or host kart missing"));
+				}
+				const FRotator Aim(0.f, Point->GetActorRotation().Yaw, 0.f);
+				HostPC->SetControlRotation(Aim);
+				Host->SetActorLocationAndRotation(Point->GetActorLocation(), Aim, false, nullptr, ETeleportType::TeleportPhysics);
+				Host->GetCharacterMovement()->StopMovementImmediately();
+				DriveStartZ = DriveMaxZ = Host->GetActorLocation().Z;
+				Host->SetDebugAutoDrive(4.f, 0.f);
+				Next(*FString::Printf(TEXT("driving from %s"), *Point->GetActorNameOrLabel()));
+				return true;
+			}
+			case 402:
+			{
+				AKartCharacter* Host = KartOf(HostPC);
+				const AActor* Point = DriveTests.IsValidIndex(DriveIndex) ? DriveTests[DriveIndex].Get() : nullptr;
+				if (!Host || !Point)
+				{
+					return Fail(TEXT("host kart lost during a drive test"));
+				}
+				DriveMaxZ = FMath::Max(DriveMaxZ, Host->GetActorLocation().Z);
+				// Ramps: reach the 150 cm platform (kart centre +120 or more). Kicker: get airborne over its 90 cm lip
+				const bool bKicker = Point->ActorHasTag(TEXT("SKKickerTest"));
+				const double Needed = bKicker ? 70.0 : 120.0;
+				if (DriveMaxZ - DriveStartZ >= Needed)
+				{
+					Next(*FString::Printf(TEXT("%s: climbed %.0f cm"), *Point->GetActorNameOrLabel(), DriveMaxZ - DriveStartZ));
+					Host->SetDebugAutoDrive(0.f, 0.f);
+					++DriveIndex;
+					Step = 401;
+					return true;
+				}
+				if (Elapsed() > 4.5f)
+				{
+					return Fail(FString::Printf(TEXT("%s: the kart only rose %.0f cm (needed %.0f) - ramp blocked or too steep?"),
+						*Point->GetActorNameOrLabel(), DriveMaxZ - DriveStartZ, Needed));
+				}
+				return true;
 			}
 
 			default:
