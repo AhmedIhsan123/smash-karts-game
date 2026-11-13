@@ -10,6 +10,8 @@ score the most smashes before the timer runs out.
 3. **Host Game** to run the match on your PC, or type the host's address and **Join Game**.
    How to connect over the internet: see **HOSTING.md**.
 4. In the lobby, drive around while everyone joins. The host picks the match length and clicks **Start Match**.
+   Playing alone or with a few friends? The host can add practice bots with **+ Bot** (up to 8 karts in total;
+   a friend who joins takes a bot's place).
 
 ## Controls
 | Key | Action |

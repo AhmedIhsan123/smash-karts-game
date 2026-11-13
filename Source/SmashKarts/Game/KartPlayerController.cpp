@@ -210,6 +210,14 @@ void AKartPlayerController::Server_SetMatchDuration_Implementation(int32 Seconds
 	}
 }
 
+void AKartPlayerController::Server_SetBotCount_Implementation(int32 Count)
+{
+	if (AKartGameMode* GM = GetWorld()->GetAuthGameMode<AKartGameMode>())
+	{
+		GM->RequestSetBotCount(this, FMath::Clamp(Count, 0, 16)); // never trust client values
+	}
+}
+
 // =====================================================================
 // Debug commands (SK.*)
 // =====================================================================
@@ -330,6 +338,10 @@ void AKartPlayerController::HandleDebugCommand(const FString& Command)
 	else if (Cmd.Equals(TEXT("State"), ESearchCase::IgnoreCase) && GM)
 	{
 		GM->DumpStateToLog();
+	}
+	else if (Cmd.Equals(TEXT("SpawnBots"), ESearchCase::IgnoreCase) && GM)
+	{
+		GM->SetBotCount(Args.Num() >= 2 ? FCString::Atoi(*Args[1]) : 3); // dev builds: anyone may add bots
 	}
 	else if (Cmd.Equals(TEXT("AutoTest"), ESearchCase::IgnoreCase))
 	{

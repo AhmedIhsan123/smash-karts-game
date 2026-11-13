@@ -6,6 +6,7 @@
 
 class AKartCharacter;
 class AKartGameState;
+class AKartBotController;
 class UKartWeaponData;
 class UDamageType;
 
@@ -105,6 +106,12 @@ public:
 	void RequestEndMatch(AController* Requester);
 	void RequestSetMatchDuration(AController* Requester, int32 Seconds);
 
+	// ---------------- Bots ----------------
+	/** Server: add or remove practice bots so there are Count of them (humans + bots never exceed MaxKartPlayers). Returns the new count. */
+	int32 SetBotCount(int32 Count);
+	void RequestSetBotCount(AController* Requester, int32 Count);
+	int32 GetBotCount() const { return Bots.Num(); }
+
 	// ---------------- Gameplay ----------------
 	/** Server: a kart hit 0 health or fell out of the world. Killer may be null. */
 	void KartEliminated(AKartCharacter* Victim, AController* Killer, TSubclassOf<UDamageType> DamageType, bool bFell);
@@ -124,6 +131,7 @@ public:
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	virtual FString InitNewPlayer(APlayerController* NewPlayerController, const FUniqueNetIdRepl& UniqueId, const FString& Options, const FString& Portal) override;
 	virtual void Logout(AController* Exiting) override;
+	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual bool PlayerCanRestart_Implementation(APlayerController* Player) override;
 	virtual void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 	virtual bool ReadyToStartMatch_Implementation() override;
@@ -172,4 +180,14 @@ private:
 	FTimerHandle ResultsTimer;
 	TMap<TWeakObjectPtr<AController>, FTimerHandle> RespawnTimers;
 	int32 NextJoinOrder = 0;
+
+	/** True while karts may (re)spawn: lobby, countdown, match. */
+	bool IsSpawnPhase() const;
+	void AddBot();
+	void RemoveBot();
+	void TrimBotsToFit();
+
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<AKartBotController>> Bots;
+	int32 BotsCreated = 0;
 };

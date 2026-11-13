@@ -2,6 +2,7 @@
 #include "Game/KartGameState.h"
 #include "Game/KartPlayerState.h"
 #include "Game/KartPlayerController.h"
+#include "Game/KartBotController.h"
 #include "UI/KartHUD.h"
 #include "KartCharacter.h"
 #include "KartDamageType.h"
@@ -308,6 +309,10 @@ void AKartGameMode::RespawnNow(AController* Controller)
 			return;
 		}
 	}
+	else if (!IsSpawnPhase())
+	{
+		return; // bots wait out the results screen like everyone else
+	}
 	RestartPlayer(Controller);
 }
 
@@ -322,6 +327,13 @@ void AKartGameMode::RespawnEveryone()
 			{
 				RespawnNow(PC);
 			}
+		}
+	}
+	for (AKartBotController* Bot : Bots)
+	{
+		if (Bot)
+		{
+			RespawnNow(Bot);
 		}
 	}
 }
@@ -639,6 +651,13 @@ void AKartGameMode::HandleMatchIsWaitingToStart()
 			RestartPlayer(PC);
 		}
 	}
+	for (AKartBotController* Bot : Bots)
+	{
+		if (Bot && !Bot->GetPawn())
+		{
+			RestartPlayer(Bot);
+		}
+	}
 	UE_LOG(LogSmashKarts, Log, TEXT("[Game] Lobby (waiting for the host)"));
 }
 
@@ -715,6 +734,111 @@ void AKartGameMode::RecheckLootBoxes()
 	{
 		It->RecheckOverlaps();
 	}
+}
+
+// =====================================================================
+// Bots
+// =====================================================================
+
+bool AKartGameMode::IsSpawnPhase() const
+{
+	const FName State = GetMatchState();
+	return State == MatchState::WaitingToStart || State == KartMatchState::Countdown || State == MatchState::InProgress;
+}
+
+void AKartGameMode::RequestSetBotCount(AController* Requester, int32 Count)
+{
+	if (IsHost(Requester))
+	{
+		SetBotCount(Count);
+	}
+}
+
+int32 AKartGameMode::SetBotCount(int32 Count)
+{
+	const int32 Humans = GetNumPlayers();
+	const int32 Wanted = FMath::Clamp(Count, 0, FMath::Max(0, MaxKartPlayers - Humans));
+	while (Bots.Num() < Wanted)
+	{
+		const int32 Before = Bots.Num();
+		AddBot();
+		if (Bots.Num() == Before)
+		{
+			break; // spawn failed
+		}
+	}
+	while (Bots.Num() > Wanted)
+	{
+		RemoveBot();
+	}
+	UE_LOG(LogSmashKarts, Log, TEXT("[Game] Bots: %d (asked for %d, %d human player(s))"), Bots.Num(), Count, Humans);
+	return Bots.Num();
+}
+
+void AKartGameMode::AddBot()
+{
+	static const TCHAR* Names[] = { TEXT("Blaze"), TEXT("Dash"), TEXT("Echo"), TEXT("Flick"), TEXT("Gizmo"), TEXT("Jolt"), TEXT("Nitro"), TEXT("Zippy") };
+
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	Params.ObjectFlags |= RF_Transient;
+	AKartBotController* Bot = GetWorld()->SpawnActor<AKartBotController>(AKartBotController::StaticClass(), Params);
+	if (!Bot)
+	{
+		return;
+	}
+	Bots.Add(Bot);
+	if (AKartPlayerState* PS = Bot->GetPlayerState<AKartPlayerState>())
+	{
+		PS->SetIsABot(true);
+		PS->SetJoinOrder(NextJoinOrder++);
+		PS->SetColorIndex(PickFreeColorIndex(PS));
+		PS->ResetMatchStats();
+		PS->SetPlayerName(FString::Printf(TEXT("Bot %s"), Names[BotsCreated % UE_ARRAY_COUNT(Names)]));
+	}
+	++BotsCreated;
+	if (IsSpawnPhase())
+	{
+		RestartPlayer(Bot); // late bots spawn straight in, like late joiners
+	}
+}
+
+void AKartGameMode::RemoveBot()
+{
+	if (Bots.Num() == 0)
+	{
+		return;
+	}
+	AKartBotController* Bot = Bots.Pop();
+	if (!Bot)
+	{
+		return;
+	}
+	if (FTimerHandle* Handle = RespawnTimers.Find(Bot))
+	{
+		GetWorldTimerManager().ClearTimer(*Handle);
+	}
+	RespawnTimers.Remove(Bot);
+	if (APawn* Pawn = Bot->GetPawn())
+	{
+		Bot->UnPossess();
+		Pawn->Destroy();
+	}
+	Bot->Destroy(); // takes its PlayerState with it
+}
+
+void AKartGameMode::TrimBotsToFit()
+{
+	while (Bots.Num() > 0 && GetNumPlayers() + Bots.Num() > MaxKartPlayers)
+	{
+		RemoveBot(); // a real player needs the seat
+	}
+}
+
+void AKartGameMode::PostLogin(APlayerController* NewPlayer)
+{
+	Super::PostLogin(NewPlayer);
+	TrimBotsToFit();
 }
 
 // =====================================================================

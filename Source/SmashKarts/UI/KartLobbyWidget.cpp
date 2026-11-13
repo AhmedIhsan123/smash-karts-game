@@ -46,6 +46,19 @@ void UKartLobbyWidget::BuildTree()
 	Lengths->AddChildToHorizontalBox(L3)->SetPadding(FMargin(6.f, 0.f));
 	Lengths->AddChildToHorizontalBox(L5);
 	Host->AddChildToVerticalBox(Lengths)->SetPadding(FMargin(0.f, 4.f, 0.f, 10.f));
+
+	// Practice bots (bots + players max 8; a joining player takes a bot's seat)
+	BotsText = MakeText(TEXT("Practice bots: 0"), 18);
+	Host->AddChildToVerticalBox(BotsText);
+	UHorizontalBox* BotButtons = WidgetTree->ConstructWidget<UHorizontalBox>();
+	UButton* AddBot = MakeButton(TEXT("+ Bot"), 18, FLinearColor(0.35f, 0.25f, 0.45f), 80.f);
+	UButton* RemoveBot = MakeButton(TEXT("- Bot"), 18, FLinearColor(0.35f, 0.25f, 0.45f), 80.f);
+	AddBot->OnClicked.AddDynamic(this, &UKartLobbyWidget::OnAddBotClicked);
+	RemoveBot->OnClicked.AddDynamic(this, &UKartLobbyWidget::OnRemoveBotClicked);
+	BotButtons->AddChildToHorizontalBox(AddBot);
+	BotButtons->AddChildToHorizontalBox(RemoveBot)->SetPadding(FMargin(6.f, 0.f));
+	Host->AddChildToVerticalBox(BotButtons)->SetPadding(FMargin(0.f, 4.f, 0.f, 10.f));
+
 	UButton* Start = MakeButton(TEXT("Start Match  (Enter)"), 24, FLinearColor(0.1f, 0.6f, 0.25f), 300.f);
 	Start->OnClicked.AddDynamic(this, &UKartLobbyWidget::OnStartClicked);
 	Host->AddChildToVerticalBox(Start);
@@ -116,6 +129,10 @@ void UKartLobbyWidget::Rebuild()
 		{
 			Label += TEXT("   HOST");
 		}
+		if (PS->IsABot())
+		{
+			Label += TEXT("   BOT");
+		}
 		if (PC && PS == PC->PlayerState)
 		{
 			Label += TEXT("   (you)");
@@ -128,6 +145,7 @@ void UKartLobbyWidget::Rebuild()
 	HostControls->SetVisibility(bHost ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	WaitingText->SetVisibility(bHost ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	SetTextIfChanged(LengthText, FString::Printf(TEXT("Match length: %s"), *KartRules::FormatMatchTime(static_cast<float>(GS->MatchDurationSeconds))));
+	SetTextIfChanged(BotsText, FString::Printf(TEXT("Practice bots: %d"), CountBots()));
 
 	if (bHost)
 	{
@@ -159,6 +177,35 @@ void UKartLobbyWidget::SetLength(int32 Seconds)
 	if (AKartPlayerController* PC = Cast<AKartPlayerController>(GetOwningPlayer()))
 	{
 		PC->Server_SetMatchDuration(Seconds);
+	}
+}
+
+int32 UKartLobbyWidget::CountBots() const
+{
+	int32 Count = 0;
+	if (const AKartGameState* GS = GetWorld() ? GetWorld()->GetGameState<AKartGameState>() : nullptr)
+	{
+		for (const APlayerState* PS : GS->PlayerArray)
+		{
+			Count += (PS && PS->IsABot()) ? 1 : 0;
+		}
+	}
+	return Count;
+}
+
+void UKartLobbyWidget::OnAddBotClicked()
+{
+	if (AKartPlayerController* PC = Cast<AKartPlayerController>(GetOwningPlayer()))
+	{
+		PC->Server_SetBotCount(CountBots() + 1);
+	}
+}
+
+void UKartLobbyWidget::OnRemoveBotClicked()
+{
+	if (AKartPlayerController* PC = Cast<AKartPlayerController>(GetOwningPlayer()))
+	{
+		PC->Server_SetBotCount(FMath::Max(0, CountBots() - 1));
 	}
 }
 

@@ -9,8 +9,8 @@ class UTextBlock;
 class UVerticalBox;
 
 /**
- * Lobby overlay (match state WaitingToStart): player list with colours and host badge, Start Match and
- * match-length buttons for the host, and the addresses friends should join. Local only; host actions go
+ * Lobby overlay (match state WaitingToStart): player list with colours and host badge, Start Match,
+ * match-length and practice-bot buttons for the host, and the addresses friends should join. Local only; host actions go
  * through AKartPlayerController Server RPCs (checked by the game mode).
  */
 UCLASS()
@@ -27,6 +27,9 @@ private:
 	UFUNCTION() void OnLength2Clicked();
 	UFUNCTION() void OnLength3Clicked();
 	UFUNCTION() void OnLength5Clicked();
+	UFUNCTION() void OnAddBotClicked();
+	UFUNCTION() void OnRemoveBotClicked();
+	int32 CountBots() const;
 	void SetLength(int32 Seconds);
 	void Rebuild();
 	static FString GetLocalAddresses();
@@ -34,6 +37,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> PlayerList;
 	UPROPERTY(Transient) TObjectPtr<UWidget> HostControls;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LengthText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> BotsText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ShareText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WaitingText;
 

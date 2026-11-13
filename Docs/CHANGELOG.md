@@ -2,6 +2,14 @@
 
 ## Unreleased (`finish-game`)
 
+### Practice bots — Nov 12
+- **`AKartBotController`** (server-only AI): unarmed it drives to the nearest loot box it can reach; armed it hunts the nearest kart and uses the weapon properly: aims projectiles (wider cone for the Seeker), sets the throw charge from the distance, drops traps when chased, starts the Machine Gun, Tesla Coil, Mace Orbit and Invincibility up close, and never sits on a weapon for more than 8 s. It obeys countdown, freeze and results like a player and idles in the lobby.
+- Steering: looks in 9 directions with a kart-sized sweep (open space first, then toward the target), slides along walls to the gaps, 3-point-turns out of corners, backs up when stuck and gives up on a target it keeps getting stuck on. In a 45 s test on `L_Arena_01` six bots drove 180–230 m each, picked up 20 weapons, fired 26 times and got stuck once.
+- Bots get a PlayerState (name "Bot Blaze" etc., colour, score), show in the scoreboard ("bot" instead of a ping) and respawn like players. Bots + players never exceed 8; a joining player takes a bot's seat.
+- Host: **+ Bot / − Bot** buttons in the lobby (works in every build). Dev builds: `SK.SpawnBots <n>`.
+- Test: `SK.AutoTest 2 quit bots` (six bots, 45 s of play: every bot keeps driving, bots score, then they're removed cleanly).
+- Fix found by the test: `AAIController` resets its control rotation to the pawn's every tick by default (`bSetControlRotationFromPawnOrientation`), which silently undid all bot steering.
+
 ### Phase 8, part 1 — Nov 12 (extras)
 - **Nuke**: slow (1500 cm/s) big yellow missile; 100 on a direct hit, 8 m splash 50 → 10, huge explosion, big death explosion, strong knockback.
 - **Fake Loot Box** (trap): dropped behind you. To everyone else it looks exactly like a loot box (same mesh, size, spin and "?" signs; the look is copied from BP_LootBox); you see yours green. 100 to whoever touches it, 5 to anyone within 1 m; lasts 60 s.

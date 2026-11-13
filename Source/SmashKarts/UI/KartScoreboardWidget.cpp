@@ -194,7 +194,7 @@ void UKartScoreboardWidget::Rebuild()
 			FString::FromInt(FMath::RoundToInt(PS->GetScore())),
 			FString::FromInt(PS->GetEliminations()),
 			FString::FromInt(PS->GetDeaths()),
-			FString::FromInt(FMath::RoundToInt(PS->GetPingInMilliseconds()))
+			PS->IsABot() ? FString(TEXT("bot")) : FString::FromInt(FMath::RoundToInt(PS->GetPingInMilliseconds()))
 		};
 		UWidget* Row = MakeRow(Cells, TextColor, &Swatch, (bResults && i == 0) ? 24 : 20);
 		Rows->AddChildToVerticalBox(Row)->SetPadding(FMargin(0.f, 3.f));

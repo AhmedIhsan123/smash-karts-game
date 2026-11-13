@@ -6,6 +6,7 @@
 #include "Game/KartGameState.h"
 #include "Game/KartPlayerState.h"
 #include "Game/KartPlayerController.h"
+#include "Game/KartBotController.h"
 #include "KartWeaponData.h"
 #include "KartWeapon.h"
 #include "KartWeaponComponent.h"
@@ -37,6 +38,7 @@ namespace
 			, bTier3Scenario(InScenario.Equals(TEXT("tier3"), ESearchCase::IgnoreCase))
 			, bArenaScenario(InScenario.Equals(TEXT("arena"), ESearchCase::IgnoreCase))
 			, bExtrasScenario(InScenario.Equals(TEXT("extras"), ESearchCase::IgnoreCase))
+			, bBotsScenario(InScenario.Equals(TEXT("bots"), ESearchCase::IgnoreCase))
 		{
 		}
 
@@ -44,7 +46,7 @@ namespace
 		{
 			StepStart = FPlatformTime::Seconds();
 			const TCHAR* Name = bStatusScenario ? TEXT("status") : bWeaponsScenario ? TEXT("weapons") : bTier3Scenario ? TEXT("tier3")
-				: bArenaScenario ? TEXT("arena") : bExtrasScenario ? TEXT("extras") : TEXT("loop");
+				: bArenaScenario ? TEXT("arena") : bExtrasScenario ? TEXT("extras") : bBotsScenario ? TEXT("bots") : TEXT("loop");
 			UE_LOG(LogSmashKarts, Log, TEXT("[AutoTest] Started (%s), waiting for %d players"), Name, Expected);
 			TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FAutoTestRunner::Tick), 0.1f);
 		}
@@ -76,6 +78,9 @@ namespace
 		bool bTier3Scenario = false;
 		bool bArenaScenario = false;
 		bool bExtrasScenario = false;
+		bool bBotsScenario = false;
+		TMap<TWeakObjectPtr<AController>, double> BotTravel;
+		TMap<TWeakObjectPtr<AController>, FVector> BotLastPos;
 		float RecordedHealth = 0.f;
 		TArray<TWeakObjectPtr<AActor>> DriveTests;
 		int32 DriveIndex = 0;
@@ -195,6 +200,10 @@ namespace
 					if (bArenaScenario)
 					{
 						Step = 400; // map checks run in the lobby, no match needed
+					}
+					if (bBotsScenario)
+					{
+						Step = 600;
 					}
 					return true;
 				}
@@ -1078,6 +1087,115 @@ namespace
 					return true;
 				}
 				return Timeout(1.5f, TEXT("fake loot box blast"));
+
+			// ================= Bots scenario =================
+			case 600:
+			{
+				// Same path as the host's lobby buttons (a Server RPC called on the host runs right away)
+				if (AKartPlayerController* HostKPC = Cast<AKartPlayerController>(HostPC.Get()))
+				{
+					HostKPC->Server_SetBotCount(6);
+				}
+				const int32 Count = Mode->GetBotCount();
+				int32 BotKarts = 0;
+				for (TActorIterator<AKartBotController> It(World.Get()); It; ++It)
+				{
+					BotKarts += Cast<AKartCharacter>(It->GetPawn()) ? 1 : 0;
+				}
+				if (Count != 6 || BotKarts != 6 || State->PlayerArray.Num() != Expected + 6)
+				{
+					return Fail(FString::Printf(TEXT("expected 6 bots with karts and %d players, got %d bots, %d karts, %d players"),
+						Expected + 6, Count, BotKarts, State->PlayerArray.Num()));
+				}
+				Mode->RequestStartMatch(HostPC.Get());
+				Next(TEXT("6 bots joined the lobby with karts; match starting"));
+				return true;
+			}
+			case 601:
+				if (State->IsPlaying())
+				{
+					BotTravel.Reset();
+					BotLastPos.Reset();
+					Next(TEXT("match in progress with bots"));
+				}
+				return Timeout(Mode->CountdownDuration + 3.f, TEXT("InProgress"));
+			case 602:
+			{
+				// Track how far each bot drives (teleports from respawns don't count)
+				for (TActorIterator<AKartBotController> It(World.Get()); It; ++It)
+				{
+					const AKartCharacter* Kart = Cast<AKartCharacter>(It->GetPawn());
+					if (!Kart || Kart->IsEliminated())
+					{
+						BotLastPos.Remove(*It);
+						continue;
+					}
+					const FVector Pos = Kart->GetActorLocation();
+					if (const FVector* Last = BotLastPos.Find(*It))
+					{
+						const double Step2D = FVector::Dist2D(*Last, Pos);
+						if (Step2D < 500.0)
+						{
+							BotTravel.FindOrAdd(*It) += Step2D;
+						}
+					}
+					BotLastPos.Add(*It, Pos);
+				}
+				if (Elapsed() < 45.f)
+				{
+					return true;
+				}
+				int32 BotElims = 0;
+				int32 BotDeaths = 0;
+				FString Report;
+				for (APlayerState* PS : State->PlayerArray)
+				{
+					const AKartPlayerState* KPS = Cast<AKartPlayerState>(PS);
+					if (KPS && KPS->IsABot())
+					{
+						BotElims += KPS->GetEliminations();
+						BotDeaths += KPS->GetDeaths();
+					}
+				}
+				for (TActorIterator<AKartBotController> It(World.Get()); It; ++It)
+				{
+					const double Travel = BotTravel.FindRef(*It);
+					Report += FString::Printf(TEXT(" %s %.0fm;"), It->PlayerState ? *It->PlayerState->GetPlayerName() : TEXT("?"), Travel / 100.0);
+					if (Travel < 1500.0)
+					{
+						return Fail(FString::Printf(TEXT("a bot barely moved in 45 s:%s"), *Report));
+					}
+				}
+				if (BotElims < 1)
+				{
+					return Fail(FString::Printf(TEXT("bots smashed nobody in 45 s (bot deaths %d):%s"), BotDeaths, *Report));
+				}
+				Next(*FString::Printf(TEXT("45 s with bots: %d smashes by bots, %d bot deaths, driven:%s"), BotElims, BotDeaths, *Report));
+				Mode->SetBotCount(0);
+				return true;
+			}
+			case 603:
+			{
+				int32 BotsLeft = 0;
+				for (TActorIterator<AKartBotController> It(World.Get()); It; ++It)
+				{
+					BotsLeft += IsValid(*It) ? 1 : 0;
+				}
+				int32 BotStates = 0;
+				for (APlayerState* PS : State->PlayerArray)
+				{
+					BotStates += (PS && PS->IsABot()) ? 1 : 0;
+				}
+				if (BotsLeft == 0 && BotStates == 0 && Mode->GetBotCount() == 0)
+				{
+					Next(TEXT("bots removed (controllers, karts and scoreboard rows)"));
+					Mode->RequestEndMatch(HostPC.Get());
+					Mode->RequestBackToLobby(HostPC.Get());
+					Step = 13;
+					return true;
+				}
+				return Timeout(2.f, TEXT("bots to be removed"));
+			}
 
 			default:
 				return Finish();

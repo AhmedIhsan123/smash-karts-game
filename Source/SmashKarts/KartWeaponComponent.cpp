@@ -62,8 +62,13 @@ float UKartWeaponComponent::GetChargeAlpha() const
 
 void UKartWeaponComponent::Server_Fire_Implementation(float ChargeAlpha)
 {
+	FireFromServer(ChargeAlpha);
+}
+
+void UKartWeaponComponent::FireFromServer(float ChargeAlpha)
+{
 	AKartCharacter* Kart = Cast<AKartCharacter>(GetOwner());
-	if (!CurrentWeapon || !Kart || Kart->IsInputLocked())
+	if (!CurrentWeapon || !Kart || !Kart->HasAuthority() || Kart->IsInputLocked())
 	{
 		return;
 	}

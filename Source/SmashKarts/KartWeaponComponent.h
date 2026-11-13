@@ -36,6 +36,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	float GetChargeAlpha() const;
 
+	// Server: fire the held weapon now (Server_Fire lands here; bots call it directly). ChargeAlpha is clamped to 0..1
+	void FireFromServer(float ChargeAlpha);
+
 	// Server: give a weapon (loot boxes call this). False if we already hold one
 	bool GiveWeapon(UKartWeaponData* Data);
 

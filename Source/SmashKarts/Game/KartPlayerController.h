@@ -40,6 +40,10 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_SetMatchDuration(int32 Seconds);
 
+	// Host: add or remove practice bots (lobby buttons, SK.SpawnBots)
+	UFUNCTION(Server, Reliable)
+	void Server_SetBotCount(int32 Count);
+
 	// ---------- Debug (development builds; ignored in Shipping) ----------
 	/** Local entry point used by the SK.* console commands. Routes to the server when needed. */
 	void RunDebugCommand(const FString& Command);
