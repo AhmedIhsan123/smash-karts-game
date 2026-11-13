@@ -236,6 +236,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trap", meta = (EditCondition = "bApplyTrapStatus", ClampMin = "0"))
 	float TrapStatusDuration = 0.f;
 
+	// When it detonates, other karts this close also take damage (Fake Loot Box). 0 = no splash
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trap", meta = (ClampMin = "0"))
+	float TrapSplashRadius = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trap", meta = (ClampMin = "0"))
+	float TrapSplashMaxDamage = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trap", meta = (ClampMin = "0"))
+	float TrapSplashMinDamage = 0.f;
+
 	// ---------------- Buff (Mace Orbit, Tesla Coil, Invincibility) ----------------
 	// Status the kart gets when Fire is pressed. The weapon stays held (HUD shows the time left) until it ends
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Buff")

@@ -36,6 +36,7 @@ namespace
 			: World(InWorld), Expected(FMath::Max(2, InExpected)), bQuit(bInQuit), bStatusScenario(InScenario.Equals(TEXT("status"), ESearchCase::IgnoreCase)), bWeaponsScenario(InScenario.Equals(TEXT("weapons"), ESearchCase::IgnoreCase))
 			, bTier3Scenario(InScenario.Equals(TEXT("tier3"), ESearchCase::IgnoreCase))
 			, bArenaScenario(InScenario.Equals(TEXT("arena"), ESearchCase::IgnoreCase))
+			, bExtrasScenario(InScenario.Equals(TEXT("extras"), ESearchCase::IgnoreCase))
 		{
 		}
 
@@ -43,7 +44,7 @@ namespace
 		{
 			StepStart = FPlatformTime::Seconds();
 			const TCHAR* Name = bStatusScenario ? TEXT("status") : bWeaponsScenario ? TEXT("weapons") : bTier3Scenario ? TEXT("tier3")
-				: bArenaScenario ? TEXT("arena") : TEXT("loop");
+				: bArenaScenario ? TEXT("arena") : bExtrasScenario ? TEXT("extras") : TEXT("loop");
 			UE_LOG(LogSmashKarts, Log, TEXT("[AutoTest] Started (%s), waiting for %d players"), Name, Expected);
 			TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FAutoTestRunner::Tick), 0.1f);
 		}
@@ -74,6 +75,7 @@ namespace
 		bool bWeaponsScenario = false;
 		bool bTier3Scenario = false;
 		bool bArenaScenario = false;
+		bool bExtrasScenario = false;
 		float RecordedHealth = 0.f;
 		TArray<TWeakObjectPtr<AActor>> DriveTests;
 		int32 DriveIndex = 0;
@@ -217,6 +219,10 @@ namespace
 					if (bWeaponsScenario)
 					{
 						Step = 200;
+					}
+					if (bExtrasScenario)
+					{
+						Step = 500;
 					}
 					if (bTier3Scenario)
 					{
@@ -956,9 +962,139 @@ namespace
 				return true;
 			}
 
+			// ================= Extras scenario (phase 8) =================
+			case 500:
+				if (!PlaceForShot(0.f, 2500.f) || !GiveHost(TEXT("Nuke")))
+				{
+					return Fail(TEXT("nuke setup failed"));
+				}
+				Next(TEXT("host has a Nuke, victim 25 m ahead"));
+				return true;
+			case 501:
+				if (Elapsed() >= 0.3f)
+				{
+					OldVictimKart = KartOf(VictimPC);
+					FireHost(0.f);
+					Next(TEXT("nuke fired"));
+				}
+				return true;
+			case 502:
+				if (OldVictimKart.IsValid() && OldVictimKart->IsEliminated())
+				{
+					Next(TEXT("nuke smashed the victim"));
+					return true;
+				}
+				return Timeout(3.f, TEXT("nuke hit"));
+			case 503:
+			case 508:
+				return WaitForVictimReady(Mode);
+			case 504:
+			{
+				if (!PlaceForShot(0.f, 1200.f) || !GiveHost(TEXT("Invincibility")))
+				{
+					return Fail(TEXT("invincibility setup failed"));
+				}
+				FireHost(0.f);
+				AKartCharacter* Host = KartOf(HostPC);
+				if (!Host->HasStatus(EKartStatus::Invincible))
+				{
+					return Fail(TEXT("Invincibility did not make the host invincible"));
+				}
+				const float Before = HealthOf(HostPC);
+				UGameplayStatics::ApplyDamage(Host, 50.f, VictimPC.Get(), KartOf(VictimPC), UDamageType::StaticClass());
+				Host->GetStatusComponent()->ApplyStatus(EKartStatus::Frozen, 3.f);
+				if (HealthOf(HostPC) < Before || Host->HasStatus(EKartStatus::Frozen))
+				{
+					return Fail(TEXT("the invincible host took damage or froze"));
+				}
+				Next(TEXT("Invincibility: no damage, can't be frozen"));
+				return true;
+			}
+			case 505:
+			{
+				AKartCharacter* Host = KartOf(HostPC);
+				AKartCharacter* Victim = KartOf(VictimPC);
+				OldVictimKart = Victim;
+				Victim->SetActorLocation(Host->GetActorLocation() + FVector(105.f, 0.f, 0.f), false, nullptr, ETeleportType::TeleportPhysics);
+				Victim->GetCharacterMovement()->StopMovementImmediately();
+				Next(TEXT("victim touching the invincible host"));
+				return true;
+			}
+			case 506:
+				if (OldVictimKart.IsValid() && OldVictimKart->IsEliminated())
+				{
+					Next(TEXT("touching an invincible kart smashed the victim"));
+					return true;
+				}
+				return Timeout(1.f, TEXT("invincible contact smash"));
+			case 507:
+			{
+				const AKartCharacter* Host = KartOf(HostPC);
+				if (Host && !Host->HasStatus(EKartStatus::Invincible) && !Host->GetWeaponComponent()->HasWeapon())
+				{
+					Next(TEXT("Invincibility ended by itself"));
+					return true;
+				}
+				return Timeout(6.f, TEXT("Invincibility to end"));
+			}
+			case 509:
+				if (!PlaceForShot(0.f, 1200.f) || !GiveHost(TEXT("FakeLootBox")))
+				{
+					return Fail(TEXT("fake loot box setup failed"));
+				}
+				FireHost(0.f);
+				Next(TEXT("fake loot box dropped behind the host"));
+				return true;
+			case 510:
+				if (Elapsed() >= 0.8f) // armed after 0.5 s
+				{
+					const AKartTrap* Fake = FindTrap(TEXT("DA_FakeLootBox"));
+					AKartCharacter* Victim = KartOf(VictimPC);
+					if (!Fake || !Victim)
+					{
+						return Fail(TEXT("no fake loot box in the world"));
+					}
+					for (TActorIterator<ALootBox> It(World.Get()); It; ++It)
+					{
+						if (Fake->GetTrapMesh()->GetStaticMesh() != It->GetBoxMesh()->GetStaticMesh())
+						{
+							return Fail(TEXT("the fake loot box doesn't use the loot box mesh"));
+						}
+						break;
+					}
+					OldVictimKart = Victim;
+					Victim->SetActorLocation(Fake->GetActorLocation() + FVector(0.f, 0.f, 60.f), false, nullptr, ETeleportType::TeleportPhysics);
+					Victim->GetCharacterMovement()->StopMovementImmediately();
+					Next(TEXT("victim drove into the fake loot box (same mesh as the real ones)"));
+				}
+				return true;
+			case 511:
+				if (OldVictimKart.IsValid() && OldVictimKart->IsEliminated() && !FindTrap(TEXT("DA_FakeLootBox")))
+				{
+					Next(TEXT("the fake loot box blew up and smashed the victim"));
+					Mode->RequestEndMatch(HostPC.Get());
+					Mode->RequestBackToLobby(HostPC.Get());
+					Step = 13;
+					return true;
+				}
+				return Timeout(1.5f, TEXT("fake loot box blast"));
+
 			default:
 				return Finish();
 			}
+		}
+
+		const AKartTrap* FindTrap(const TCHAR* DataAssetName) const
+		{
+			for (TActorIterator<AKartTrap> It(World.Get()); It; ++It)
+			{
+				const UKartWeaponData* Data = It->GetWeaponData();
+				if (Data && Data->GetName() == DataAssetName && !It->IsActorBeingDestroyed() && !It->IsHidden())
+				{
+					return *It;
+				}
+			}
+			return nullptr;
 		}
 
 		bool WaitForVictimReady(const AKartGameMode* Mode)

@@ -46,8 +46,11 @@ score the most smashes before the timer runs out.
 | Tesla Coil | 5 s of lightning: zaps every kart within the blue ring that you can see, twice a second |
 | Snowball | 3 throws; a hit freezes the kart for 3 s. Ram a frozen kart to smash it |
 | Spike Strip | dropped behind you; pops the tires of everyone who drives over it (slow and slippery until they respawn). Stays for 30 s |
+| Nuke | slow, but the blast is huge: everyone near it gets hurt and thrown |
+| Fake Loot Box | drops a fake **?** box behind you. It looks real to everyone else (yours shows green to you); whoever grabs it blows up |
+| Invincibility | 5 s golden shield: nothing hurts or freezes you, and anyone you touch is smashed |
 
-The weapon panel (bottom right) shows uses left, or the time left for Machine Gun, Mace Orbit and Tesla Coil.
+The weapon panel (bottom right) shows uses left, or the time left for Machine Gun, Mace Orbit, Tesla Coil and Invincibility.
 
 ## Problems?
 - **Can't connect**: check the address, make sure the host is in the lobby, see HOSTING.md (firewall / VPN).

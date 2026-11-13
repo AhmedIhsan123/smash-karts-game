@@ -8,6 +8,9 @@
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/RotatingMovementComponent.h"
+#include "KartQuestionMarksComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "Net/UnrealNetwork.h"
 #include "TimerManager.h"
 
@@ -32,6 +35,9 @@ ALootBox::ALootBox()
 
 	Rotator = CreateDefaultSubobject<URotatingMovementComponent>(TEXT("Rotator"));
 	Rotator->RotationRate = FRotator(0.f, 90.f, 0.f);
+
+	QuestionMarks = CreateDefaultSubobject<UKartQuestionMarksComponent>(TEXT("QuestionMarks"));
+	QuestionMarks->SetupAttachment(Mesh); // spins and hides with the box
 }
 
 void ALootBox::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -91,6 +97,7 @@ void ALootBox::TryGive(AActor* OtherActor)
 
 	if (WeaponComp->GiveWeapon(Data))
 	{
+		Multicast_PickedUp();
 		bActive = false;
 		OnRep_Active();
 		GetWorldTimerManager().SetTimer(RespawnTimer, this, &ALootBox::Respawn, RespawnTime, false);
@@ -150,6 +157,14 @@ UKartWeaponData* ALootBox::RollWeapon() const
 	}
 	const int32 Index = KartRules::PickWeightedIndex(Weights, FMath::FRand());
 	return WeaponPool.IsValidIndex(Index) ? WeaponPool[Index].Get() : nullptr;
+}
+
+void ALootBox::Multicast_PickedUp_Implementation()
+{
+	if (PickupFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, PickupFX, GetActorLocation(), FRotator::ZeroRotator, FVector(PickupFXScale));
+	}
 }
 
 void ALootBox::OnRep_Active()

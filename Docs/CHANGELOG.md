@@ -2,6 +2,15 @@
 
 ## Unreleased (`finish-game`)
 
+### Phase 8, part 1 — Nov 12 (extras)
+- **Nuke**: slow (1500 cm/s) big yellow missile; 100 on a direct hit, 8 m splash 50 → 10, huge explosion, big death explosion, strong knockback.
+- **Fake Loot Box** (trap): dropped behind you. To everyone else it looks exactly like a loot box (same mesh, size, spin and "?" signs; the look is copied from BP_LootBox); you see yours green. 100 to whoever touches it, 5 to anyone within 1 m; lasts 60 s.
+- **Invincibility** (buff, 5 s): golden shield bubble; no damage, no freezing, no popped tires; touching another kart smashes it (kill feed "Invincibility"); two invincible karts just bounce.
+- Loot boxes: a "?" on every side (spins with the box) and a burst when picked up.
+- Traps: optional splash damage, disguise (only the owner sees through it), cosmetic spin.
+- Drop weights are 10 like every other weapon. The brief suggested making Fake Loot Box and Invincibility rare (1): lower `DropWeight` on their data assets in the editor if they show up too often.
+- Assets: `sk_phase8_setup.py` (14 weapons in the loot pool and catalog). Test: `SK.AutoTest 2 quit extras` (Nuke kill, Invincibility blocks damage and freezing, smashes on touch and runs out, Fake Loot Box uses the loot box mesh and kills).
+
 ### Checkpoint 4 — Nov 12
 - Passed: first internet playtest with friends on `L_Arena_01` (v0.5 packaged build): joining, all tier 3 weapons, pit knock-ins, ramps and kicker, two full matches with Play Again.
 

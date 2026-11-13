@@ -2,6 +2,7 @@
 #include "KartWeaponData.h"
 #include "KartCharacter.h"
 #include "KartStatusComponent.h"
+#include "KartQuestionMarksComponent.h"
 #include "SmashKarts.h"
 #include "Components/BoxComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -30,7 +31,8 @@ namespace
 
 AKartTrap::AKartTrap()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bStartWithTickEnabled = false; // only disguised traps tick (cosmetic spin)
 	bReplicates = true;
 	SetReplicatingMovement(false); // traps don't move
 
@@ -54,6 +56,10 @@ AKartTrap::AKartTrap()
 	Decor->SetupAttachment(Trigger);
 	Decor->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Decor->SetGenerateOverlapEvents(false);
+
+	QuestionMarks = CreateDefaultSubobject<UKartQuestionMarksComponent>(TEXT("QuestionMarks"));
+	QuestionMarks->SetupAttachment(Mesh);
+	QuestionMarks->bShowSigns = false; // BP_FakeLootBox turns them on
 }
 
 void AKartTrap::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -97,6 +103,7 @@ void AKartTrap::BeginPlay()
 	}
 	BuildDecor();
 	UpdateOwnerColor();
+	SetActorTickEnabled(SpinDegreesPerSecond != 0.f && GetNetMode() != NM_DedicatedServer);
 
 	if (HasAuthority())
 	{
@@ -175,7 +182,22 @@ void AKartTrap::UpdateOwnerColor()
 
 void AKartTrap::OnOwnerColor_Implementation(bool bIsMine)
 {
-	if (!bTintMeshWithOwnerColor || !Mesh || Mesh->GetNumMaterials() == 0)
+	if (!Mesh)
+	{
+		return;
+	}
+	// Disguised trap: only the owner sees through it; everyone else keeps the loot box look
+	if (OwnerLookMaterial)
+	{
+		if (bIsMine && !OwnerLookMID)
+		{
+			OwnerLookMID = UMaterialInstanceDynamic::Create(OwnerLookMaterial, this);
+			OwnerLookMID->SetVectorParameterValue(ColorParameter, OwnColor);
+			Mesh->SetMaterial(0, OwnerLookMID);
+		}
+		return;
+	}
+	if (!bTintMeshWithOwnerColor || Mesh->GetNumMaterials() == 0)
 	{
 		return;
 	}
@@ -251,10 +273,33 @@ void AKartTrap::HurtVictim(AActor* Victim)
 	}
 }
 
+void AKartTrap::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	if (Mesh && SpinDegreesPerSecond != 0.f)
+	{
+		Mesh->AddRelativeRotation(FRotator(0.f, SpinDegreesPerSecond * DeltaSeconds, 0.f));
+	}
+}
+
 void AKartTrap::Detonate(AActor* Victim)
 {
 	bDetonated = true;
 	HurtVictim(Victim);
+
+	// Splash for anyone else nearby (never the owner, even after respawning)
+	if (WeaponData && WeaponData->TrapSplashRadius > 0.f && WeaponData->TrapSplashMaxDamage > 0.f)
+	{
+		AController* Credit = OwnerController.IsValid() ? OwnerController.Get() : GetInstigatorController();
+		TArray<AActor*> Ignore;
+		if (Victim) { Ignore.Add(Victim); } // already took the full hit
+		if (GetInstigator()) { Ignore.AddUnique(GetInstigator()); }
+		if (Credit && Credit->GetPawn()) { Ignore.AddUnique(Credit->GetPawn()); }
+		UGameplayStatics::ApplyRadialDamageWithFalloff(this, WeaponData->TrapSplashMaxDamage, WeaponData->TrapSplashMinDamage,
+			GetActorLocation() + FVector(0.f, 0.f, 50.f), 0.f, WeaponData->TrapSplashRadius, 1.f, WeaponData->GetDamageTypeOrDefault(),
+			Ignore, this, Credit, ECC_Visibility);
+	}
+
 	Multicast_Detonate(GetActorLocation());
 
 	Trigger->SetCollisionEnabled(ECollisionEnabled::NoCollision);

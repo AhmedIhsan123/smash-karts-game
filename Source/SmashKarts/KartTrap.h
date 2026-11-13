@@ -9,15 +9,18 @@ class UBoxComponent;
 class UStaticMeshComponent;
 class UInstancedStaticMeshComponent;
 class UMaterialInterface;
+class UMaterialInstanceDynamic;
 class UStaticMesh;
 class UKartWeaponData;
+class UKartQuestionMarksComponent;
 class UNiagaraSystem;
 class APlayerState;
 
 /**
- * Placed trap (Mine, Spike Strip, later Fake Loot Box). Make a Blueprint child per trap (BP_Mine, BP_SpikeStrip)
- * for the mesh and FX; numbers come from the weapon data asset.
+ * Placed trap (Mine, Spike Strip, Fake Loot Box). Make a Blueprint child per trap (BP_Mine, BP_SpikeStrip,
+ * BP_FakeLootBox) for the mesh and FX; numbers come from the weapon data asset.
  * Mines detonate on the first enemy kart. Strips (bStaysAfterTrigger) catch each enemy kart once and stay.
+ * A disguised trap (OwnerLookMaterial set) looks like a loot box to everyone but its owner.
  *
  * Authority: server only (arming, triggering, damage, status, lifetime).
  * Replicates: WeaponData and the owner's PlayerState (green for the owner, red for everyone else), a multicast for
@@ -44,6 +47,10 @@ public:
 
 	UKartWeaponData* GetWeaponData() const { return WeaponData; }
 
+	UStaticMeshComponent* GetTrapMesh() const { return Mesh; }
+
+	virtual void Tick(float DeltaSeconds) override;
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -60,6 +67,10 @@ protected:
 	/** Repeated decoration across the trap's width (Spike Strip spikes). */
 	UPROPERTY(VisibleAnywhere, Category = "Trap")
 	TObjectPtr<UInstancedStaticMeshComponent> Decor;
+
+	/** "?" signs for traps disguised as loot boxes (off unless the Blueprint turns them on). */
+	UPROPERTY(VisibleAnywhere, Category = "Trap")
+	TObjectPtr<UKartQuestionMarksComponent> QuestionMarks;
 
 	UPROPERTY(Replicated)
 	TObjectPtr<UKartWeaponData> WeaponData;
@@ -143,8 +154,20 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Trap|Look")
 	float DecorHeight = 12.f;
 
+	/** Spins the mesh like a loot box (degrees per second, cosmetic). 0 = still. */
+	UPROPERTY(EditDefaultsOnly, Category = "Trap|Look")
+	float SpinDegreesPerSecond = 0.f;
+
+	/** Disguised traps: only the owner sees the mesh in this material (tinted OwnColor); everyone else keeps
+	 *  the disguise. Empty = normal trap (green / red tint for everyone). */
+	UPROPERTY(EditDefaultsOnly, Category = "Trap|Look")
+	TObjectPtr<UMaterialInterface> OwnerLookMaterial;
+
 private:
 	void BuildDecor();
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> OwnerLookMID;
 
 	bool bArmed = false;
 	bool bDetonated = false;
