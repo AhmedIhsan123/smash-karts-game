@@ -27,3 +27,12 @@
 Thumbs.db
 Desktop.ini
 .DS_Store
+# --- Local secrets (EOS credentials). Template: Config/Windows/WindowsEngine.ini.example ---
+/Config/Windows/WindowsEngine.ini
+
+# --- Packaged builds ---
+/Build/
+
+# --- Python bytecode from editor scripts ---
+__pycache__/
+*.pyc

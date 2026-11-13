@@ -1,0 +1,7 @@
+; Local EOS credentials. Copy this file to WindowsEngine.ini (gitignored) and fill in the values from
+; the Epic Developer Portal (see Docs/EOS_SETUP.md). It is layered into the Windows Engine config and
+; packaged with Windows builds. Nothing here is used until EOS is enabled (phase 7).
+
+[/Script/OnlineSubsystemEOS.EOSSettings]
+DefaultArtifactName=KartArena
++Artifacts=(ArtifactName="KartArena",ClientId="PASTE_CLIENT_ID",ClientSecret="PASTE_CLIENT_SECRET",ProductId="PASTE_PRODUCT_ID",SandboxId="PASTE_SANDBOX_ID",DeploymentId="PASTE_DEPLOYMENT_ID",ClientEncryptionKey="1111111111111111111111111111111111111111111111111111111111111111")
