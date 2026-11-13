@@ -2,6 +2,7 @@
 #include "KartWeaponData.h"
 #include "KartCharacter.h"
 #include "KartWeaponComponent.h"
+#include "KartRules.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Net/UnrealNetwork.h"
@@ -26,6 +27,21 @@ void AKartWeapon::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifet
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AKartWeapon, WeaponData);
 	DOREPLIFETIME(AKartWeapon, UsesLeft);
+	DOREPLIFETIME(AKartWeapon, ActiveEndServerTime);
+}
+
+float AKartWeapon::GetActiveTimeRemaining() const
+{
+	if (ActiveEndServerTime <= 0.0)
+	{
+		return 0.f;
+	}
+	return static_cast<float>(FMath::Max(0.0, ActiveEndServerTime - KartTime::ServerNow(this)));
+}
+
+void AKartWeapon::SetActiveFor(float Seconds)
+{
+	ActiveEndServerTime = Seconds > 0.f ? KartTime::ServerNow(this) + Seconds : 0.0;
 }
 
 void AKartWeapon::InitWeapon(UKartWeaponData* InData)

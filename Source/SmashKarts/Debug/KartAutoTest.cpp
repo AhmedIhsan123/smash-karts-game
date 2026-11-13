@@ -13,8 +13,10 @@
 #include "KartCharacter.h"
 #include "KartHealthComponent.h"
 #include "KartStatusComponent.h"
+#include "KartTrap.h"
 #include "SmashKarts.h"
 #include "Containers/Ticker.h"
+#include "EngineUtils.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/DamageType.h"
@@ -29,13 +31,15 @@ namespace
 	public:
 		FAutoTestRunner(UWorld* InWorld, int32 InExpected, bool bInQuit, const FString& InScenario)
 			: World(InWorld), Expected(FMath::Max(2, InExpected)), bQuit(bInQuit), bStatusScenario(InScenario.Equals(TEXT("status"), ESearchCase::IgnoreCase)), bWeaponsScenario(InScenario.Equals(TEXT("weapons"), ESearchCase::IgnoreCase))
+			, bTier3Scenario(InScenario.Equals(TEXT("tier3"), ESearchCase::IgnoreCase))
 		{
 		}
 
 		void Begin()
 		{
 			StepStart = FPlatformTime::Seconds();
-			UE_LOG(LogSmashKarts, Log, TEXT("[AutoTest] Started (%s), waiting for %d players"), bStatusScenario ? TEXT("status") : (bWeaponsScenario ? TEXT("weapons") : TEXT("loop")), Expected);
+			UE_LOG(LogSmashKarts, Log, TEXT("[AutoTest] Started (%s), waiting for %d players"),
+				bStatusScenario ? TEXT("status") : (bWeaponsScenario ? TEXT("weapons") : (bTier3Scenario ? TEXT("tier3") : TEXT("loop"))), Expected);
 			TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(this, &FAutoTestRunner::Tick), 0.1f);
 		}
 
@@ -63,6 +67,7 @@ namespace
 		TWeakObjectPtr<AKartCharacter> OldHostKart;
 		bool bStatusScenario = false;
 		bool bWeaponsScenario = false;
+		bool bTier3Scenario = false;
 		float RecordedHealth = 0.f;
 		FVector RecordedLocation = FVector::ZeroVector;
 
@@ -198,6 +203,11 @@ namespace
 					if (bWeaponsScenario)
 					{
 						Step = 200;
+					}
+					if (bTier3Scenario)
+					{
+						Step = 300;
+						GEngine->Exec(World.Get(), TEXT("NetEmulation.PktLag 60")); // status flags and zap beams under lag
 					}
 					if (bStatusScenario)
 					{
@@ -637,9 +647,216 @@ namespace
 				}
 				return Timeout(5.f, TEXT("cannon ball hits"));
 
+			// ================= Tier 3 scenario (phase 5) =================
+			case 300:
+				if (!PlaceForShot(0.f, 1200.f) || !GiveHost(TEXT("Snowball")))
+				{
+					return Fail(TEXT("snowball setup failed"));
+				}
+				Next(TEXT("host has a Snowball, victim 12 m ahead"));
+				return true;
+			case 301:
+				if (Elapsed() >= 0.3f)
+				{
+					RecordedHealth = HealthOf(VictimPC);
+					OldVictimKart = KartOf(VictimPC);
+					FireHost(0.f);
+					Next(TEXT("snowball thrown"));
+				}
+				return true;
+			case 302:
+			{
+				const AKartCharacter* Victim = KartOf(VictimPC);
+				if (Victim && Victim->HasStatus(EKartStatus::Frozen) && HealthOf(VictimPC) < RecordedHealth)
+				{
+					Next(*FString::Printf(TEXT("snowball froze the victim (%.0f -> %.0f hp)"), RecordedHealth, HealthOf(VictimPC)));
+					return true;
+				}
+				return Timeout(2.f, TEXT("snowball freeze"));
+			}
+			case 303:
+			{
+				AKartCharacter* Host = KartOf(HostPC);
+				AKartCharacter* Victim = KartOf(VictimPC);
+				if (!Host || !Victim)
+				{
+					return Fail(TEXT("missing karts"));
+				}
+				const FVector ToVictim = (Victim->GetActorLocation() - Host->GetActorLocation()).GetSafeNormal2D();
+				Host->SetActorLocation(Victim->GetActorLocation() - ToVictim * 220.f, false, nullptr, ETeleportType::TeleportPhysics);
+				Host->GetCharacterMovement()->Velocity = ToVictim * 900.f;
+				Next(TEXT("host rams the frozen victim at 900"));
+				return true;
+			}
+			case 304:
+				if (OldVictimKart.IsValid() && OldVictimKart->IsEliminated())
+				{
+					Next(TEXT("ramming the snowball-frozen kart smashed it"));
+					return true;
+				}
+				return Timeout(1.5f, TEXT("frozen ram smash"));
+			case 305:
+			case 310:
+				return WaitForVictimReady(Mode);
+			case 306:
+			{
+				if (!PlaceForShot(0.f, 1200.f) || !GiveHost(TEXT("MaceOrbit")))
+				{
+					return Fail(TEXT("mace orbit setup failed"));
+				}
+				FireHost(0.f);
+				AKartCharacter* Host = KartOf(HostPC);
+				const AKartWeapon* Weapon = Host->GetWeaponComponent()->GetCurrentWeapon();
+				if (!Host->HasStatus(EKartStatus::Spiky) || !Weapon || Weapon->GetActiveTimeRemaining() <= 0.f)
+				{
+					return Fail(TEXT("Mace Orbit did not make the host Spiky with a running timer"));
+				}
+				Next(TEXT("Mace Orbit active (Spiky, weapon timer running)"));
+				return true;
+			}
+			case 307:
+			{
+				AKartCharacter* Host = KartOf(HostPC);
+				AKartCharacter* Victim = KartOf(VictimPC);
+				OldVictimKart = Victim;
+				Victim->SetActorLocation(Host->GetActorLocation() + FVector(170.f, 0.f, 0.f), false, nullptr, ETeleportType::TeleportPhysics);
+				Victim->GetCharacterMovement()->StopMovementImmediately();
+				Next(TEXT("victim parked 170 cm away (inside the mace reach, not touching)"));
+				return true;
+			}
+			case 308:
+				if (OldVictimKart.IsValid() && OldVictimKart->IsEliminated())
+				{
+					Next(TEXT("maces smashed the victim"));
+					return true;
+				}
+				return Timeout(1.f, TEXT("mace smash"));
+			case 309:
+			{
+				const AKartCharacter* Host = KartOf(HostPC);
+				if (Host && !Host->HasStatus(EKartStatus::Spiky) && !Host->GetWeaponComponent()->HasWeapon())
+				{
+					Next(TEXT("Mace Orbit ended by itself and the weapon is gone"));
+					return true;
+				}
+				return Timeout(7.f, TEXT("Mace Orbit to end"));
+			}
+			case 311:
+			{
+				if (!PlaceForShot(0.f, 400.f) || !GiveHost(TEXT("TeslaCoil")))
+				{
+					return Fail(TEXT("tesla setup failed"));
+				}
+				RecordedHealth = HealthOf(VictimPC);
+				FireHost(0.f);
+				if (!KartOf(HostPC)->HasStatus(EKartStatus::Tesla))
+				{
+					return Fail(TEXT("Tesla Coil did not set the Tesla status"));
+				}
+				Next(TEXT("Tesla Coil active, victim 4 m away in the open"));
+				return true;
+			}
+			case 312:
+				if (HealthOf(VictimPC) <= RecordedHealth - 20.f)
+				{
+					Next(*FString::Printf(TEXT("victim zapped in range: %.0f -> %.0f hp"), RecordedHealth, HealthOf(VictimPC)));
+					AKartCharacter* Host = KartOf(HostPC);
+					AKartCharacter* Victim = KartOf(VictimPC);
+					Victim->SetActorLocation(Host->GetActorLocation() + FVector(900.f, 0.f, 0.f), false, nullptr, ETeleportType::TeleportPhysics);
+					Victim->GetCharacterMovement()->StopMovementImmediately();
+					RecordedHealth = HealthOf(VictimPC);
+					return true;
+				}
+				return Timeout(1.6f, TEXT("tesla zaps"));
+			case 313:
+				if (Elapsed() >= 1.2f)
+				{
+					if (HealthOf(VictimPC) < RecordedHealth)
+					{
+						return Fail(TEXT("victim was zapped 9 m away (out of range)"));
+					}
+					Next(TEXT("no zaps 9 m away"));
+				}
+				return true;
+			case 314:
+			{
+				const AKartCharacter* Host = KartOf(HostPC);
+				if (Host && !Host->HasStatus(EKartStatus::Tesla) && !Host->GetWeaponComponent()->HasWeapon())
+				{
+					Next(TEXT("Tesla Coil ended by itself"));
+					return true;
+				}
+				return Timeout(5.f, TEXT("Tesla Coil to end"));
+			}
+			case 315:
+				if (!PlaceForShot(0.f, 1200.f) || !GiveHost(TEXT("SpikeStrip")))
+				{
+					return Fail(TEXT("spike strip setup failed"));
+				}
+				FireHost(0.f);
+				Next(TEXT("spike strip dropped behind the host"));
+				return true;
+			case 316:
+				if (Elapsed() >= 0.8f) // armed after 0.5 s
+				{
+					const AKartTrap* Strip = FindStayingTrap();
+					AKartCharacter* Victim = KartOf(VictimPC);
+					if (!Strip || !Victim)
+					{
+						return Fail(TEXT("no spike strip in the world"));
+					}
+					RecordedHealth = HealthOf(VictimPC);
+					Victim->SetActorLocation(Strip->GetActorLocation() + FVector(0.f, 0.f, 60.f), false, nullptr, ETeleportType::TeleportPhysics);
+					Victim->GetCharacterMovement()->StopMovementImmediately();
+					Next(TEXT("victim driven onto the strip"));
+				}
+				return true;
+			case 317:
+			{
+				const AKartCharacter* Victim = KartOf(VictimPC);
+				if (Victim && Victim->HasStatus(EKartStatus::TiresPopped) && HealthOf(VictimPC) < RecordedHealth)
+				{
+					if (!FindStayingTrap())
+					{
+						return Fail(TEXT("the strip disappeared after catching a kart"));
+					}
+					Next(*FString::Printf(TEXT("strip popped the tires (%.0f -> %.0f hp) and stays"), RecordedHealth, HealthOf(VictimPC)));
+					GEngine->Exec(World.Get(), TEXT("NetEmulation.Off"));
+					Mode->RequestEndMatch(HostPC.Get());
+					Mode->RequestBackToLobby(HostPC.Get());
+					Step = 13;
+					return true;
+				}
+				return Timeout(1.5f, TEXT("spike strip catch"));
+			}
+
 			default:
 				return Finish();
 			}
+		}
+
+		bool WaitForVictimReady(const AKartGameMode* Mode)
+		{
+			const AKartCharacter* Victim = KartOf(VictimPC);
+			if (Victim && !Victim->IsEliminated() && !Victim->HasStatus(EKartStatus::SpawnProtected))
+			{
+				Next(TEXT("victim alive and unprotected"));
+				return true;
+			}
+			return Timeout(Mode->RespawnDelay + Mode->SpawnProtectionDuration + 4.f, TEXT("victim respawn"));
+		}
+
+		const AKartTrap* FindStayingTrap() const
+		{
+			for (TActorIterator<AKartTrap> It(World.Get()); It; ++It)
+			{
+				const UKartWeaponData* Data = It->GetWeaponData();
+				if (Data && Data->bStaysAfterTrigger && !It->IsActorBeingDestroyed())
+				{
+					return *It;
+				}
+			}
+			return nullptr;
 		}
 
 		// ---------- weapons scenario helpers ----------

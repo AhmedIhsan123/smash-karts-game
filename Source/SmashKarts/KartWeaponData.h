@@ -33,7 +33,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = "0"))
 	float DropWeight = 10.f;
 
-	// Which behavior class to spawn: ProjectileWeapon, TrapWeapon or TurretWeapon
+	// Which behavior class to spawn: ProjectileWeapon, TrapWeapon, TurretWeapon or BuffWeapon
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	TSubclassOf<AKartWeapon> WeaponClass;
 
@@ -214,6 +214,49 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trap")
 	float TrapLifetime = 30.f;
+
+	// Any axis > 0: the trigger is a box with this half-size (X along the kart, Y across it) instead of a
+	// sphere of TriggerRadius. Spike Strip: (40, 150, 40) = a strip 300 wide
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trap")
+	FVector TriggerBoxExtent = FVector::ZeroVector;
+
+	// The trap stays after catching a kart and can catch others (Spike Strip); each kart is caught once.
+	// false = it detonates and disappears (Mines)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trap")
+	bool bStaysAfterTrigger = false;
+
+	// Status for the kart that triggers it (Spike Strip: TiresPopped)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trap")
+	bool bApplyTrapStatus = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trap", meta = (EditCondition = "bApplyTrapStatus"))
+	EKartStatus TrapStatus = EKartStatus::TiresPopped;
+
+	// Seconds; 0 = until the kart respawns
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trap", meta = (EditCondition = "bApplyTrapStatus", ClampMin = "0"))
+	float TrapStatusDuration = 0.f;
+
+	// ---------------- Buff (Mace Orbit, Tesla Coil, Invincibility) ----------------
+	// Status the kart gets when Fire is pressed. The weapon stays held (HUD shows the time left) until it ends
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Buff")
+	EKartStatus BuffStatus = EKartStatus::Spiky;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Buff", meta = (ClampMin = "0.1"))
+	float BuffDuration = 6.f;
+
+	// > 0: every AuraInterval seconds the server zaps every enemy kart within AuraRadius (Tesla Coil). 0 = no aura
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Buff|Aura", meta = (ClampMin = "0"))
+	float AuraInterval = 0.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Buff|Aura", meta = (ClampMin = "0"))
+	float AuraRadius = 500.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Buff|Aura", meta = (ClampMin = "0"))
+	float AuraDamage = 10.f;
+
+	// Walls and cover block the zap
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Buff|Aura")
+	bool bAuraNeedsLineOfSight = true;
 
 	// ---------------- Turret ----------------
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Turret")

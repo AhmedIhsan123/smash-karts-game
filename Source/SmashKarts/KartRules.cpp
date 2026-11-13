@@ -100,6 +100,15 @@ float KartRules::LineVolleySpeedScale(float BaseSpeed, float PitchDegrees, float
 	return FMath::Sqrt(Distance / FarDistance);
 }
 
+int32 KartRules::AuraZapCount(float Duration, float Interval)
+{
+	if (Interval <= 0.f || Duration <= 0.f)
+	{
+		return 0;
+	}
+	return FMath::Max(1, FMath::FloorToInt(Duration / Interval + 1.0e-3f));
+}
+
 FString KartRules::SanitizePlayerName(const FString& InName, int32 MaxLength)
 {
 	FString Out;

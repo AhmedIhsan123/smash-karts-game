@@ -169,4 +169,15 @@ bool FKartContactRulesTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKartAuraZapCountTest, "SmashKarts.Rules.AuraZapCount", KartTestFlags)
+bool FKartAuraZapCountTest::RunTest(const FString& Parameters)
+{
+	TestEqual(TEXT("Tesla Coil: 5 s every 0.5 s"), KartRules::AuraZapCount(5.f, 0.5f), 10);
+	TestEqual(TEXT("6 s every 0.5 s"), KartRules::AuraZapCount(6.f, 0.5f), 12);
+	TestEqual(TEXT("float error doesn't lose a zap (0.7f / 0.1f = 6.9999998)"), KartRules::AuraZapCount(0.7f, 0.1f), 7);
+	TestEqual(TEXT("shorter than one interval still zaps once"), KartRules::AuraZapCount(0.2f, 0.5f), 1);
+	TestEqual(TEXT("no interval = no aura"), KartRules::AuraZapCount(5.f, 0.f), 0);
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

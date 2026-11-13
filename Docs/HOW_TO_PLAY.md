@@ -36,9 +36,13 @@ score the most smashes before the timer runs out.
 | Seeker Missile | flies straight, then curves into the nearest kart in front |
 | Cannon Balls | hold Space to charge; 4 balls land in a line ahead, the first one farthest |
 | Sticky Bomb | hold to charge; sticks where it lands, explodes when someone gets close (or after 5 s) |
-| Mines | drops 3 mines behind you; yours look green to you |
+| Mines | drops 3 mines behind you; yours look green to you, everyone else's red |
+| Mace Orbit | 6 s of spiked maces circling your kart: anyone they touch is smashed. You're faster and tougher meanwhile |
+| Tesla Coil | 5 s of lightning: zaps every kart within the blue ring that you can see, twice a second |
+| Snowball | 3 throws; a hit freezes the kart for 3 s. Ram a frozen kart to smash it |
+| Spike Strip | dropped behind you; pops the tires of everyone who drives over it (slow and slippery until they respawn). Stays for 30 s |
 
-More weapons arrive in later builds.
+The weapon panel (bottom right) shows uses left, or the time left for Machine Gun, Mace Orbit and Tesla Coil.
 
 ## Problems?
 - **Can't connect**: check the address, make sure the host is in the lobby, see HOSTING.md (firewall / VPN).

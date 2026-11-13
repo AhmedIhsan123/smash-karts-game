@@ -26,6 +26,7 @@ void ATurretWeapon::Fire(float ChargeAlpha)
 	}
 
 	bActive = true;
+	SetActiveFor(WeaponData->TurretDuration);
 	const float Interval = 1.f / FMath::Max(1.f, WeaponData->ShotsPerSecond);
 	GetWorldTimerManager().SetTimer(ShootTimer, this, &ATurretWeapon::ShootTick, Interval, true);
 	GetWorldTimerManager().SetTimer(DurationTimer, this, &ATurretWeapon::EndTurret, WeaponData->TurretDuration, false);

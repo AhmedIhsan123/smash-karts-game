@@ -23,6 +23,7 @@ class UDamageType;
 struct FInputActionValue;
 
 class UKartWeaponComponent;
+class UKartStatusFXComponent;
 
 /**
  * The player's kart.
@@ -64,6 +65,7 @@ public:
 	FORCEINLINE UKartWeaponComponent* GetWeaponComponent() const { return WeaponComponent; }
 	FORCEINLINE UKartHealthComponent* GetHealthComponent() const { return HealthComponent; }
 	FORCEINLINE UKartStatusComponent* GetStatusComponent() const { return StatusComponent; }
+	FORCEINLINE UKartStatusFXComponent* GetStatusFX() const { return StatusFX; }
 
 	/** Server: hide, disable and stop the kart, drop its weapon and statuses, play the death FX everywhere. */
 	void Eliminate(bool bBigExplosion);
@@ -224,6 +226,10 @@ private:
 
 	UPROPERTY(VisibleAnywhere, Category = "Kart")
 	TObjectPtr<UKartStatusComponent> StatusComponent;
+
+	/** Ice block, maces, Tesla aura, shield bubble, sparks, zap beams. Cosmetic; meshes/materials set in BP_Kart. */
+	UPROPERTY(VisibleAnywhere, Category = "Kart")
+	TObjectPtr<UKartStatusFXComponent> StatusFX;
 
 	/** Name + health above the kart (screen space, hidden for your own kart). Cosmetic, every machine. */
 	UPROPERTY(VisibleAnywhere, Category = "Components")

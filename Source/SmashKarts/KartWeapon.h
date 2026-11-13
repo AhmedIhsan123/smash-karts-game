@@ -14,7 +14,10 @@ class UStaticMeshComponent;
  *
  * Standard flow (Projectile, Trap): press Fire → BurstCount shots, BurstInterval apart,
  * each shot calls FireOnce() → then one use is consumed.
- * Turret overrides Fire() completely.
+ * Turret and Buff override Fire() completely (one press starts a timed effect).
+ *
+ * Authority: server only (spawned, fired and destroyed there). Replicates: WeaponData, UsesLeft and
+ * ActiveEndServerTime (for the HUD); attachment keeps it on the kart. Client prediction: none.
  */
 UCLASS(Abstract)
 class SMASHKARTS_API AKartWeapon : public AActor
@@ -38,7 +41,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	int32 GetUsesLeft() const { return UsesLeft; }
 
+	/** Seconds left while a timed weapon is running (Machine Gun, buffs); 0 when it isn't. Any machine. */
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	float GetActiveTimeRemaining() const;
+
 protected:
+	/** Server: the weapon is running for this long (HUD countdown). */
+	void SetActiveFor(float Seconds);
+
+	/** Server world time a timed weapon stops (0 = not running). Replicated for the HUD. */
+	UPROPERTY(Replicated)
+	double ActiveEndServerTime = 0.0;
+
 	UPROPERTY(VisibleAnywhere, Category = "Weapon")
 	TObjectPtr<USceneComponent> Root;
 

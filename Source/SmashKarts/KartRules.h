@@ -67,6 +67,12 @@ namespace KartRules
 	 */
 	SMASHKARTS_API FContactResult ResolveContact(const FContactSide& A, const FContactSide& B, bool bTouching,
 		bool bAReachesB, bool bBReachesA, bool bARamsB, bool bBRamsA);
+
+	/**
+	 * Zaps an aura buff gets: one right away, then one per Interval while the buff lasts
+	 * (Tesla Coil 5 s / 0.5 s = 10). Tolerant of float error (0.7f / 0.1f gives 7, not 6). 0 if Interval <= 0.
+	 */
+	SMASHKARTS_API int32 AuraZapCount(float Duration, float Interval);
 }
 
 namespace KartTime

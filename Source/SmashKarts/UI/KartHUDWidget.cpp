@@ -89,6 +89,9 @@ void UKartHUDWidget::BuildTree()
 	ChargeBar->SetVisibility(ESlateVisibility::Collapsed);
 	AddToCanvas(Root, ChargeBar, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-100.f, -96.f), false, FVector2D(240.f, 16.f));
 
+	PickupText = MakeText(TEXT(""), 22, HudGold);
+	AddToCanvas(Root, PickupText, FAnchors(1.f, 1.f), FVector2D(1.f, 1.f), FVector2D(-100.f, -122.f));
+
 	// Bottom centre: controls / lobby hint
 	HintText = MakeText(TEXT(""), 16, SoftWhite);
 	AddToCanvas(Root, HintText, FAnchors(0.5f, 1.f), FVector2D(0.5f, 1.f), FVector2D(0.f, -18.f));
@@ -232,13 +235,36 @@ void UKartHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	const UKartWeaponComponent* WeaponComp = Kart ? Kart->GetWeaponComponent() : nullptr;
 	const AKartWeapon* Weapon = WeaponComp ? WeaponComp->GetCurrentWeapon() : nullptr;
 	const UKartWeaponData* Data = Weapon ? Weapon->GetWeaponData() : nullptr;
+	if (Weapon != LastWeapon.Get())
+	{
+		if (Data)
+		{
+			const FString PickedName = Data->DisplayName.IsEmpty() ? Data->GetName() : Data->DisplayName.ToString();
+			SetTextIfChanged(PickupText, FString::Printf(TEXT("Picked up: %s"), *PickedName));
+			PickupUntil = LocalNow + 2.0;
+		}
+		LastWeapon = Weapon;
+	}
+	if (LocalNow >= PickupUntil)
+	{
+		SetTextIfChanged(PickupText, FString());
+	}
+
 	if (Data)
 	{
 		const FString Name = Data->DisplayName.IsEmpty() ? Data->GetName() : Data->DisplayName.ToString();
 		SetTextIfChanged(WeaponText, Name);
-		SetTextIfChanged(UsesText, Data->bChargeThrow
-			? FString::Printf(TEXT("Uses left: %d   (hold Space, release to throw)"), Weapon->GetUsesLeft())
-			: FString::Printf(TEXT("Uses left: %d   (Space)"), Weapon->GetUsesLeft()));
+		const float ActiveLeft = Weapon->GetActiveTimeRemaining();
+		if (ActiveLeft > 0.f)
+		{
+			SetTextIfChanged(UsesText, FString::Printf(TEXT("Active: %.1f s"), ActiveLeft));
+		}
+		else
+		{
+			SetTextIfChanged(UsesText, Data->bChargeThrow
+				? FString::Printf(TEXT("Uses left: %d   (hold Space, release to throw)"), Weapon->GetUsesLeft())
+				: FString::Printf(TEXT("Uses left: %d   (Space)"), Weapon->GetUsesLeft()));
+		}
 
 		// Generated icon: weapon colour + initials ("Machine Gun" -> "MG", "Rockets" -> "RO")
 		TArray<FString> Words;

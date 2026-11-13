@@ -22,11 +22,11 @@ void ATrapWeapon::FireOnce(float ChargeAlpha)
 	const float HalfHeight = Kart->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 	FVector DropLocation = Behind - FVector(0.f, 0.f, HalfHeight);
 
+	// Visibility hits floors of any object type (L_Test's floor is WorldDynamic) but not karts, triggers or loot boxes
 	FHitResult Hit;
-	FCollisionQueryParams Params;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(TrapDrop), false);
 	Params.AddIgnoredActor(Kart);
-	if (GetWorld()->LineTraceSingleByObjectType(Hit, Behind, Behind - FVector(0.f, 0.f, 2000.f),
-		FCollisionObjectQueryParams(ECC_WorldStatic), Params))
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Behind, Behind - FVector(0.f, 0.f, 2000.f), ECC_Visibility, Params))
 	{
 		DropLocation = Hit.ImpactPoint;
 	}

@@ -41,6 +41,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> HealthBar;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeaponText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> UsesText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> PickupText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> ChargeBar;
 	UPROPERTY(Transient) TObjectPtr<UBorder> WeaponIcon;
@@ -62,4 +63,8 @@ private:
 
 	FName LastMatchState;
 	double GoUntil = 0.0;
+
+	// "Picked up: Rockets" when the held weapon changes to a new one
+	TWeakObjectPtr<const class AKartWeapon> LastWeapon;
+	double PickupUntil = 0.0;
 };

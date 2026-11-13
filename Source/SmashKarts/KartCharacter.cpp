@@ -28,6 +28,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "KartMovementComponent.h"
+#include "KartStatusFXComponent.h"
 #include "Engine/Engine.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Net/UnrealNetwork.h"
@@ -85,6 +86,10 @@ AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer)
 
 	// STATUS COMPONENT (freeze, popped tires, buffs, spawn protection)
 	StatusComponent = CreateDefaultSubobject<UKartStatusComponent>(TEXT("StatusComponent"));
+
+	// STATUS VISUALS (on the mesh so they get the same network smoothing as the kart body)
+	StatusFX = CreateDefaultSubobject<UKartStatusFXComponent>(TEXT("StatusFX"));
+	StatusFX->SetupAttachment(GetMesh());
 
 	// NAME TAG (screen-space widget above the kart; attached to the mesh so it gets network smoothing)
 	NameTag = CreateDefaultSubobject<UWidgetComponent>(TEXT("NameTag"));

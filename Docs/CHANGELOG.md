@@ -2,6 +2,19 @@
 
 ## Unreleased (`finish-game`)
 
+### Phase 5 — Nov 12 (tier 3 weapons)
+- **Mace Orbit** (buff, 6 s): 5 spiked maces orbit the kart at 150 cm; anyone they reach is smashed (100, kill feed "Mace Orbit"); +25 % speed, −10 % damage taken (from phase 2).
+- **Tesla Coil** (buff, 5 s): zaps every enemy kart within 500 cm that it can see, right away and then every 0.5 s (10 zaps max, 10 damage each); flickering blue aura, a faint ring on the ground showing the range, jagged beams to each target.
+- **Snowball** (3 throws): straight, 2500 cm/s, 20 m range, 7 damage, freezes for 3 s (ice block on the kart); ram a frozen kart to smash it.
+- **Spike Strip** (trap): dropped behind you, 300 cm wide; pops the tires of each enemy that crosses it (until they respawn, sparks under the kart) for 10 damage, and stays for 30 s.
+- New `ABuffWeapon` (weapon archetype D): one press applies a status for a duration, optional aura zaps; the weapon stays held until the buff ends. Machine Gun and buffs show **"Active: 4.2 s"** on the HUD (replicated end time on the weapon).
+- New `UKartStatusFXComponent` on the kart: ice block, maces, Tesla aura + range ring, shield bubble (ready for Invincibility), popped-tire sparks, zap beams. Follows the replicated status flags, so every machine shows the same; uses engine meshes/materials set on BP_Kart.
+- Traps: optional box trigger, "stays after catching" mode, status on trigger, decoration row (spikes). Default owner colour: **your own traps are green, everyone else's red** (Mines now too: BP_Mine got a material with a colour parameter).
+- Trap drop now finds floors of any collision type (L_Test's floor is WorldDynamic).
+- HUD: "Picked up: <weapon>" for 2 s.
+- Assets (`sk_phase5_setup.py`): DA/DT/BP for the four weapons (drop weight 10 each, like the rest), loot box pool and weapon catalog = 11 weapons, mace contact smashes use `DT_MaceOrbit`.
+- Tests: `SmashKarts.Rules.AuraZapCount`; `SK.AutoTest 2 quit tier3` (Snowball freeze + ram smash, Mace Orbit smash and timeout, Tesla zaps in range / none out of range, Spike Strip pops tires and stays) passes with 60 ms lag; the client log shows the statuses and zap beams arriving. Loop, status and weapons scenarios still pass.
+
 ### Checkpoint 3 — Nov 12
 - Passed: packaged build, two windows on one PC and two PCs on a LAN (menus, lobby, match, pause/settings, leave/rejoin, host-left message, saved name).
 
