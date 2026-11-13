@@ -6,6 +6,10 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/PlayerState.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 
 AKartProjectile::AKartProjectile()
 {
@@ -47,6 +51,25 @@ void AKartProjectile::InitProjectile(UKartWeaponData* InData, float InSpeed)
 {
 	WeaponData = InData;
 	LaunchSpeed = InSpeed;
+	if (const APawn* Shooter = GetInstigator())
+	{
+		OwnerController = Shooter->GetController();
+		OwnerPlayerState = Shooter->GetPlayerState();
+	}
+}
+
+bool AKartProjectile::IsOwnerKart(const AActor* Actor) const
+{
+	if (!Actor)
+	{
+		return false;
+	}
+	if (Actor == GetInstigator())
+	{
+		return true;
+	}
+	const APawn* Pawn = Cast<APawn>(Actor);
+	return Pawn && OwnerPlayerState.IsValid() && Pawn->GetPlayerState() == OwnerPlayerState.Get();
 }
 
 void AKartProjectile::BeginPlay()
@@ -75,11 +98,12 @@ void AKartProjectile::BeginPlay()
 void AKartProjectile::OnOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	if (bExploded || !OtherActor || OtherActor == GetInstigator())
+	if (bExploded || !OtherActor || IsOwnerKart(OtherActor))
 	{
 		return;
 	}
-	if (Cast<AKartCharacter>(OtherActor))
+	const AKartCharacter* Kart = Cast<AKartCharacter>(OtherActor);
+	if (Kart && !Kart->IsEliminated())
 	{
 		Explode(OtherActor);
 	}
@@ -88,7 +112,7 @@ void AKartProjectile::OnOverlap(UPrimitiveComponent* OverlappedComp, AActor* Oth
 void AKartProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	FVector NormalImpulse, const FHitResult& Hit)
 {
-	if (bExploded || (OtherActor && OtherActor == GetInstigator()))
+	if (bExploded || IsOwnerKart(OtherActor))
 	{
 		return;
 	}
@@ -102,7 +126,7 @@ void AKartProjectile::Explode(AActor* DirectHitActor)
 
 	if (WeaponData)
 	{
-		AController* ShooterController = GetInstigatorController();
+		AController* ShooterController = OwnerController.IsValid() ? OwnerController.Get() : GetInstigatorController();
 		const TSubclassOf<UDamageType> DamageType = WeaponData->GetDamageTypeOrDefault();
 
 		if (DirectHitActor && WeaponData->DirectDamage > 0.f)
@@ -114,6 +138,7 @@ void AKartProjectile::Explode(AActor* DirectHitActor)
 		{
 			TArray<AActor*> IgnoreActors;
 			if (GetInstigator()) { IgnoreActors.Add(GetInstigator()); } // no self-damage
+			if (ShooterController && ShooterController->GetPawn()) { IgnoreActors.AddUnique(ShooterController->GetPawn()); } // ...even after respawning
 			if (DirectHitActor)  { IgnoreActors.Add(DirectHitActor); }  // already took direct damage
 
 			UGameplayStatics::ApplyRadialDamageWithFalloff(this,
@@ -136,4 +161,12 @@ void AKartProjectile::Multicast_Explode_Implementation(FVector Location)
 {
 	SetActorHiddenInGame(true);
 	OnExplodeFX(Location);
+}
+
+void AKartProjectile::OnExplodeFX_Implementation(FVector Location)
+{
+	if (ExplosionFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, ExplosionFX, Location, FRotator::ZeroRotator, FVector(ExplosionFXScale));
+	}
 }

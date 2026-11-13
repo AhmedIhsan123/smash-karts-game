@@ -8,6 +8,9 @@ class USphereComponent;
 class UStaticMeshComponent;
 class UProjectileMovementComponent;
 class UKartWeaponData;
+class UNiagaraSystem;
+class AController;
+class APlayerState;
 
 /**
  * Replicated projectile. Server detects hits and applies damage;
@@ -59,10 +62,23 @@ protected:
 	UFUNCTION(NetMulticast, Unreliable)
 	void Multicast_Explode(FVector Location);
 
-	// Runs on every machine. Spawn your explosion particles / sound here in the Blueprint
-	UFUNCTION(BlueprintImplementableEvent, Category = "Projectile")
+	// Runs on every machine. Default: spawns ExplosionFX. Override in the Blueprint for more (sound etc.)
+	UFUNCTION(BlueprintNativeEvent, Category = "Projectile")
 	void OnExplodeFX(FVector Location);
+
+	UPROPERTY(EditDefaultsOnly, Category = "Projectile|FX")
+	TObjectPtr<UNiagaraSystem> ExplosionFX;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Projectile|FX", meta = (ClampMin = "0.05"))
+	float ExplosionFXScale = 1.f;
+
+	/** True for the shooter's kart, including a respawned one (no self-damage after dying). */
+	bool IsOwnerKart(const AActor* Actor) const;
 
 private:
 	bool bExploded = false;
+
+	// Server: the shooter, kept by controller / PlayerState so kills still count after the shooter respawns
+	TWeakObjectPtr<AController> OwnerController;
+	TWeakObjectPtr<APlayerState> OwnerPlayerState;
 };

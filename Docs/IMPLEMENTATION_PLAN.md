@@ -45,8 +45,8 @@ Respawn: the dead kart stays possessed and hidden (camera stays put), then is de
 ## Phases
 | # | Phase | Main files | Status |
 |---|---|---|---|
-| 0 | Recon, plan, Python scripting, CLI build | `.uproject`, `Build.cs`, `Docs/*`, `Tools/EditorScripts/sk_common.py`, `sk_inspect.py` | 🔨 |
-| 1 | Core loop | `Game/KartGameMode`, `Game/KartGameState`, `Game/KartPlayerState`, `Game/KartPlayerController`, `UI/KartHUD`, `UI/KartHUDWidget`, `UI/KartScoreboardWidget`, `UI/KartWidgetHelpers`, `KartStatusComponent`, `KartDamageType`, `KartRules`, `Debug/KartDebugCommands`, `Tests/KartRulesTests`; edits to kart, health, weapon component, loot box, turret; `sk_phase1_setup.py` | ⏳ → 🛑 CP1 |
+| 0 | Recon, plan, Python scripting, CLI build | `.uproject`, `Build.cs`, `Docs/*`, `Tools/EditorScripts/sk_common.py`, `sk_inspect.py` | ✅ Nov 12 |
+| 1 | Core loop | `Game/KartGameMode`, `Game/KartGameState`, `Game/KartPlayerState`, `Game/KartPlayerController`, `UI/KartHUD`, `UI/KartHUDWidget`, `UI/KartScoreboardWidget`, `UI/KartWidgetBase`, `KartStatusComponent`, `KartDamageType`, `KartRules`, `Debug/KartDebugCommands`, `Tests/KartRulesTests`, `Debug/KartAutoTest`; edits to kart, health, weapon component, loot box, turret, projectile, trap; `sk_phase1_setup.py` | 🛑 CP1 (code done Nov 12) |
 | 2 | Status + knockback | `KartStatusComponent` (all flags), `KartMovementComponent` (freeze, popped tires, spiky speed, knockback via `LaunchCharacter`/pending impulse, wall bounce), contact smash in kart | ⏳ |
 | 3 | Tier 2 weapons | `KartProjectile` (homing, sticky → trap, charge speed), `ProjectileWeapon` (charge), kart Fire Completed binding + charge meter, DA/BP for Bullets, Seeker, Cannon Balls, Sticky Bomb | ⏳ → 🛑 CP2 |
 | 4 | Menus + direct IP | `Game/KartGameInstance` (net errors, name save), `UI/KartMainMenuWidget`, lobby overlay, pause, settings, colours, name tags, damage numbers, `L_MainMenu`, `Docs/HOSTING.md`, renderer settings | ⏳ → 🛑 CP3 |

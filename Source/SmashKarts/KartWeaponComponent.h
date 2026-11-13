@@ -29,6 +29,9 @@ public:
 	// Server: the weapon calls this when it's used up
 	void ClearWeapon(AKartWeapon* Weapon);
 
+	// Server: destroy the held weapon right away (elimination, debug)
+	void DestroyWeapon();
+
 	UFUNCTION(BlueprintPure, Category = "Weapon")
 	bool HasWeapon() const { return CurrentWeapon != nullptr; }
 

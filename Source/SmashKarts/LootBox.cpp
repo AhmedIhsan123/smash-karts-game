@@ -1,8 +1,10 @@
 #include "LootBox.h"
 #include "KartWeaponData.h"
 #include "KartWeaponComponent.h"
+#include "KartRules.h"
 #include "SmashKarts.h"
 #include "KartCharacter.h"
+#include "Game/KartGameState.h"
 #include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/RotatingMovementComponent.h"
@@ -45,29 +47,47 @@ void ALootBox::BeginPlay()
 	{
 		Trigger->OnComponentBeginOverlap.AddDynamic(this, &ALootBox::OnOverlap);
 	}
+	OnRep_Active(); // apply the initial visibility (the game mode may have set bActive before BeginPlay)
 }
 
 void ALootBox::OnOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
 	int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-	UE_LOG(LogSmashKarts, Warning, TEXT("[LootBox] %s overlapped by %s (comp %s)"),
-		*GetName(), *GetNameSafe(OtherActor), *GetNameSafe(OtherComp));
 	TryGive(OtherActor);
 }
 
 void ALootBox::TryGive(AActor* OtherActor)
 {
-	if (!bActive) { UE_LOG(LogSmashKarts, Warning, TEXT("[LootBox] inactive")); return; }
+	if (!bActive)
+	{
+		return;
+	}
+
+	// Weapons only during the match (lobby = drive around, countdown = frozen)
+	const AKartGameState* GS = GetWorld()->GetGameState<AKartGameState>();
+	if (GS && !GS->IsPlaying())
+	{
+		return;
+	}
 
 	AKartCharacter* Kart = Cast<AKartCharacter>(OtherActor);
-	if (!Kart) { UE_LOG(LogSmashKarts, Warning, TEXT("[LootBox] not a kart")); return; }
+	if (!Kart || Kart->IsEliminated())
+	{
+		return;
+	}
 
 	UKartWeaponComponent* WeaponComp = Kart->GetWeaponComponent();
-	if (!WeaponComp) { UE_LOG(LogSmashKarts, Warning, TEXT("[LootBox] kart has NO WeaponComponent")); return; }
-	if (WeaponComp->HasWeapon()) { UE_LOG(LogSmashKarts, Warning, TEXT("[LootBox] kart already has a weapon")); return; }
+	if (!WeaponComp || WeaponComp->HasWeapon()) // one weapon at a time: drive through with a weapon = no pickup
+	{
+		return;
+	}
 
 	UKartWeaponData* Data = RollWeapon();
-	if (!Data) { UE_LOG(LogSmashKarts, Warning, TEXT("[LootBox] roll returned nothing - pool empty or weights 0")); return; }
+	if (!Data)
+	{
+		UE_LOG(LogSmashKarts, Warning, TEXT("[LootBox] %s: pool empty or all weights 0"), *GetName());
+		return;
+	}
 
 	if (WeaponComp->GiveWeapon(Data))
 	{
@@ -85,8 +105,29 @@ void ALootBox::Respawn()
 {
 	bActive = true;
 	OnRep_Active();
+	RecheckOverlaps(); // a kart may already be sitting inside the box
+}
 
-	// A kart may already be sitting inside the box
+void ALootBox::ResetBox(bool bInActive)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+	GetWorldTimerManager().ClearTimer(RespawnTimer);
+	if (bActive != bInActive)
+	{
+		bActive = bInActive;
+		OnRep_Active();
+	}
+}
+
+void ALootBox::RecheckOverlaps()
+{
+	if (!HasAuthority() || !bActive)
+	{
+		return;
+	}
 	TArray<AActor*> Overlapping;
 	Trigger->GetOverlappingActors(Overlapping, AKartCharacter::StaticClass());
 	for (AActor* Actor : Overlapping)
@@ -101,39 +142,21 @@ void ALootBox::Respawn()
 
 UKartWeaponData* ALootBox::RollWeapon() const
 {
-	float TotalWeight = 0.f;
-	for (UKartWeaponData* Data : WeaponPool)
+	TArray<float> Weights;
+	Weights.Reserve(WeaponPool.Num());
+	for (const UKartWeaponData* Data : WeaponPool)
 	{
-		if (Data)
-		{
-			TotalWeight += FMath::Max(0.f, Data->DropWeight);
-		}
+		Weights.Add(Data ? Data->DropWeight : 0.f);
 	}
-	if (TotalWeight <= 0.f)
-	{
-		return nullptr;
-	}
-
-	float Roll = FMath::FRandRange(0.f, TotalWeight);
-	UKartWeaponData* LastValid = nullptr;
-	for (UKartWeaponData* Data : WeaponPool)
-	{
-		if (!Data || Data->DropWeight <= 0.f)
-		{
-			continue;
-		}
-		LastValid = Data;
-		Roll -= Data->DropWeight;
-		if (Roll <= 0.f)
-		{
-			return Data;
-		}
-	}
-	return LastValid; // float rounding safety
+	const int32 Index = KartRules::PickWeightedIndex(Weights, FMath::FRand());
+	return WeaponPool.IsValidIndex(Index) ? WeaponPool[Index].Get() : nullptr;
 }
 
 void ALootBox::OnRep_Active()
 {
-	Mesh->SetVisibility(bActive, true);
+	if (Mesh)
+	{
+		Mesh->SetVisibility(bActive, true);
+	}
 	OnActiveChanged(bActive);
 }

@@ -10,6 +10,7 @@ UKartHealthComponent::UKartHealthComponent()
 	PrimaryComponentTick.bCanEverTick = false;
 	SetIsReplicatedByDefault(true);
 	MaxHealth = 100.f;
+	Health = MaxHealth; // clients show full health before the first replication
 }
 
 void UKartHealthComponent::BeginPlay()
@@ -44,7 +45,7 @@ void UKartHealthComponent::ApplyHealthDamage(float Amount)
 void UKartHealthComponent::OnRep_Health(float OldHealth)
 {
 	const TCHAR* Machine = (GetOwner() && GetOwner()->HasAuthority()) ? TEXT("Server") : TEXT("Client");
-	UE_LOG(LogSmashKarts, Log, TEXT("[Health] %s | %s | %.0f -> %.0f"), *GetNameSafe(GetOwner()), Machine, OldHealth, Health);
+	UE_LOG(LogSmashKarts, Verbose, TEXT("[Health] %s | %s | %.0f -> %.0f"), *GetNameSafe(GetOwner()), Machine, OldHealth, Health);
 }
 
 float UKartHealthComponent::GetHealth() const

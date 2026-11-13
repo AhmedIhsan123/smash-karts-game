@@ -8,11 +8,16 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "KartHealthComponent.h"
+#include "KartStatusComponent.h"
+#include "KartRules.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
 #include "KartWeaponComponent.h"
+#include "Game/KartGameMode.h"
+#include "Game/KartGameState.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
@@ -20,6 +25,9 @@
 #include "InputActionValue.h"
 #include "KartMovementComponent.h"
 #include "Engine/Engine.h"
+#include "Net/UnrealNetwork.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 
 
 // Sets default values
@@ -70,18 +78,30 @@ AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer)
 	// WEAPON COMPONENT
 	WeaponComponent = CreateDefaultSubobject<UKartWeaponComponent>(TEXT("WeaponComponent"));
 
+	// STATUS COMPONENT (freeze, popped tires, buffs, spawn protection)
+	StatusComponent = CreateDefaultSubobject<UKartStatusComponent>(TEXT("StatusComponent"));
+
 	// Kart feel defaults
 	TurnRate = 40.f;
 	SteerSpeed = 250.f;
 	SteerRampUpRate = 2.f;
 	SteerReturnRate = 3.f;
 
+	BigDeathFXScale = 3.f;
+	ProtectionBlinkPeriod = 0.2f;
+
 	bDebugSteer = false;
+}
+
+void AKartCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AKartCharacter, bEliminated);
 }
 
 void AKartCharacter::LogNetState(const TCHAR* Context) const
 {
-	UE_LOG(LogSmashKarts, Log, TEXT("[%s] %s | Machine: %s | Role: %s | Local: %s"),
+	UE_LOG(LogSmashKarts, Verbose, TEXT("[%s] %s | Machine: %s | Role: %s | Local: %s"),
 		Context,                                              // const TCHAR* already -> no *
 		*GetName(),                                           // FString -> needs *
 		HasAuthority() ? TEXT("Server") : TEXT("Client"),     // ternary gives const TCHAR* -> no *
@@ -130,8 +150,28 @@ void AKartCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	}
 }
 
+bool AKartCharacter::IsInputLocked() const
+{
+	if (bEliminated)
+	{
+		return true;
+	}
+	if (const AKartGameState* GS = GetWorld() ? GetWorld()->GetGameState<AKartGameState>() : nullptr)
+	{
+		if (GS->IsCountdown() || GS->IsPostMatch())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void AKartCharacter::Throttle(const FInputActionValue& Value)
 {
+	if (IsInputLocked())
+	{
+		return;
+	}
 	const float Axis = Value.Get<float>(); // -1 (S) to +1 (W)
 
 	// Push only along the kart's forward direction: no strafing.
@@ -149,14 +189,20 @@ void AKartCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	// Every copy: hidden when smashed, blinking while spawn protected
+	UpdateVisibility();
+
 	// Only the owning player has input; other copies of this kart skip steering.
 	if (!IsLocallyControlled()) return;
 
-	// Pick how fast CurrentSteer moves: ramp up while a key is held, ease back when released
-	const float Rate = FMath::IsNearlyZero(RawSteerInput) ? SteerReturnRate : SteerRampUpRate;
+	// Locked (smashed / countdown / results): let the wheel return to centre, don't turn
+	const float TargetSteer = IsInputLocked() ? 0.f : RawSteerInput;
 
-	// Move CurrentSteer toward RawSteerInput at a steady speed of Rate units per second
-	CurrentSteer = FMath::FInterpConstantTo(CurrentSteer, RawSteerInput, DeltaSeconds, Rate);
+	// Pick how fast CurrentSteer moves: ramp up while a key is held, ease back when released
+	const float Rate = FMath::IsNearlyZero(TargetSteer) ? SteerReturnRate : SteerRampUpRate;
+
+	// Move CurrentSteer toward the target at a steady speed of Rate units per second
+	CurrentSteer = FMath::FInterpConstantTo(CurrentSteer, TargetSteer, DeltaSeconds, Rate);
 
 	// Speed along the kart's nose (cm/s). Positive = driving forward, negative = reversing.
 	// Sideways sliding doesn't count, so it drops toward 0 in a hard slide.
@@ -181,31 +227,161 @@ void AKartCharacter::Tick(float DeltaSeconds)
 
 	// Only steer on the ground. In the air, we don't want to change facing direction.
 	// No zero-speed check needed: SpeedFactor is already 0 when stopped.
-	if (!GetCharacterMovement()->IsFalling())
+	if (!GetCharacterMovement()->IsFalling() && !IsInputLocked())
 	{
 		AddControllerYawInput(CurrentSteer * TurnRate * DeltaSeconds * SpeedFactor * DirectionSign);
 	}
 }
 
+void AKartCharacter::UpdateVisibility()
+{
+	if (!KartMesh)
+	{
+		return;
+	}
+	bool bVisible = !bEliminated;
+	if (bVisible && StatusComponent && StatusComponent->HasStatus(EKartStatus::SpawnProtected))
+	{
+		const double Phase = FMath::Fmod(GetWorld()->GetTimeSeconds(), static_cast<double>(ProtectionBlinkPeriod));
+		bVisible = Phase < ProtectionBlinkPeriod * 0.6;
+	}
+	if (KartMesh->IsVisible() != bVisible)
+	{
+		KartMesh->SetVisibility(bVisible, true);
+	}
+}
+
 float AKartCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	const float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-
-	// Week 4: Invincible / Spikey checks go here, before health
-	if (HealthComponent && ActualDamage > 0.f)
+	if (!HasAuthority() || bEliminated)
 	{
-		HealthComponent->ApplyHealthDamage(ActualDamage);
+		return 0.f;
+	}
+
+	// Damage modifiers before health: spawn protection / invincibility block everything
+	if (StatusComponent && (StatusComponent->HasStatus(EKartStatus::SpawnProtected) || StatusComponent->HasStatus(EKartStatus::Invincible)))
+	{
+		return 0.f;
+	}
+
+	// Super handles radial falloff and returns the final amount
+	const float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	if (!HealthComponent || ActualDamage <= 0.f)
+	{
+		return 0.f;
+	}
+
+	// Remember who hit us (fall credit)
+	if (EventInstigator && EventInstigator != GetController())
+	{
+		LastAttacker = EventInstigator;
+		LastAttackTime = KartTime::ServerNow(this);
+		LastAttackType = DamageEvent.DamageTypeClass;
+	}
+
+	HealthComponent->ApplyHealthDamage(ActualDamage);
+
+	if (HealthComponent->GetHealth() <= 0.f)
+	{
+		if (AKartGameMode* GM = GetWorld()->GetAuthGameMode<AKartGameMode>())
+		{
+			GM->KartEliminated(this, EventInstigator, DamageEvent.DamageTypeClass, false);
+		}
+		else
+		{
+			Eliminate(false);
+		}
 	}
 	return ActualDamage;
 }
 
-void AKartCharacter::Fire()
+void AKartCharacter::FellOutOfWorld(const UDamageType& DmgType)
 {
-	UE_LOG(LogSmashKarts, Warning, TEXT("[Fire] pressed, has weapon: %s"),
-		(WeaponComponent && WeaponComponent->HasWeapon()) ? TEXT("yes") : TEXT("no"));
+	if (!HasAuthority() || bEliminated)
+	{
+		return; // already parked until the respawn
+	}
+	if (AKartGameMode* GM = GetWorld()->GetAuthGameMode<AKartGameMode>())
+	{
+		GM->KartEliminated(this, nullptr, nullptr, true);
+	}
+	else
+	{
+		Super::FellOutOfWorld(DmgType);
+	}
+}
+
+AController* AKartCharacter::GetRecentAttacker(float WindowSeconds) const
+{
+	if (LastAttacker.IsValid() && KartTime::ServerNow(this) - LastAttackTime <= WindowSeconds)
+	{
+		return LastAttacker.Get();
+	}
+	return nullptr;
+}
+
+void AKartCharacter::Eliminate(bool bBigExplosion)
+{
+	if (!HasAuthority() || bEliminated)
+	{
+		return;
+	}
+	bEliminated = true;
 
 	if (WeaponComponent)
 	{
-		WeaponComponent->FirePressed();
+		WeaponComponent->DestroyWeapon();
 	}
+	if (StatusComponent)
+	{
+		StatusComponent->ClearAll();
+	}
+	Multicast_EliminatedFX(bBigExplosion);
+	OnRep_Eliminated(); // RepNotify doesn't run on the server
+}
+
+void AKartCharacter::OnRep_Eliminated()
+{
+	UE_LOG(LogSmashKarts, Log, TEXT("[Kart] %s eliminated=%s (%s)"), *GetNameSafe(GetPlayerState()), bEliminated ? TEXT("yes") : TEXT("no"),
+		HasAuthority() ? TEXT("Server") : TEXT("Client"));
+
+	if (!bEliminated)
+	{
+		return;
+	}
+	if (UCharacterMovementComponent* Move = GetCharacterMovement())
+	{
+		Move->StopMovementImmediately();
+		Move->DisableMovement();
+	}
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	RawSteerInput = 0.f;
+	CurrentSteer = 0.f;
+	UpdateVisibility();
+}
+
+void AKartCharacter::Multicast_EliminatedFX_Implementation(bool bBigExplosion)
+{
+	OnEliminatedFX(bBigExplosion);
+}
+
+void AKartCharacter::OnEliminatedFX_Implementation(bool bBigExplosion)
+{
+	UNiagaraSystem* System = (bBigExplosion && BigDeathFX) ? BigDeathFX.Get() : DeathFX.Get();
+	if (!System)
+	{
+		return;
+	}
+	const float Scale = (bBigExplosion && !BigDeathFX) ? BigDeathFXScale : 1.f;
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, System, GetActorLocation(), FRotator::ZeroRotator, FVector(Scale));
+}
+
+void AKartCharacter::Fire()
+{
+	if (IsInputLocked() || !WeaponComponent)
+	{
+		return;
+	}
+	UE_LOG(LogSmashKarts, Verbose, TEXT("[Fire] pressed, has weapon: %s"), WeaponComponent->HasWeapon() ? TEXT("yes") : TEXT("no"));
+	WeaponComponent->FirePressed();
 }

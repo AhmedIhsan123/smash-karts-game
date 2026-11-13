@@ -2,6 +2,7 @@
 
 
 #include "KartMovementComponent.h"
+#include "KartCharacter.h"
 
 // Kart tuning defaults live here; BP_Kart only holds asset references
 UKartMovementComponent::UKartMovementComponent() 
@@ -48,4 +49,17 @@ void UKartMovementComponent::CalcVelocity(float DeltaTime, float Friction, bool 
 	
 	// Call the parent class's CalcVelocity to handle normal movement
 	Super::CalcVelocity(DeltaTime, Friction, bFluid, BrakingDeceleration);
+}
+
+FVector UKartMovementComponent::ConstrainInputAcceleration(const FVector& InputAcceleration) const
+{
+	// Same rule on server and owning client: both read replicated state (bEliminated, match state)
+	if (const AKartCharacter* Kart = Cast<AKartCharacter>(CharacterOwner))
+	{
+		if (Kart->IsInputLocked())
+		{
+			return FVector::ZeroVector;
+		}
+	}
+	return Super::ConstrainInputAcceleration(InputAcceleration);
 }

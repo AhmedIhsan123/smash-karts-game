@@ -2,6 +2,7 @@
 #include "KartWeapon.h"
 #include "KartWeaponData.h"
 #include "KartCharacter.h"
+#include "KartStatusComponent.h"
 #include "SmashKarts.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Net/UnrealNetwork.h"
@@ -28,10 +29,29 @@ void UKartWeaponComponent::FirePressed()
 
 void UKartWeaponComponent::Server_Fire_Implementation(float ChargeAlpha)
 {
-	if (CurrentWeapon)
+	AKartCharacter* Kart = Cast<AKartCharacter>(GetOwner());
+	if (!CurrentWeapon || !Kart || Kart->IsInputLocked())
 	{
-		CurrentWeapon->Fire(FMath::Clamp(ChargeAlpha, 0.f, 1.f)); // never trust client values
+		return;
 	}
+	// Firing ends spawn protection early
+	if (UKartStatusComponent* Status = Kart->GetStatusComponent())
+	{
+		Status->ClearStatus(EKartStatus::SpawnProtected);
+	}
+	CurrentWeapon->Fire(FMath::Clamp(ChargeAlpha, 0.f, 1.f)); // never trust client values
+}
+
+void UKartWeaponComponent::DestroyWeapon()
+{
+	if (!CurrentWeapon || !GetOwner() || !GetOwner()->HasAuthority())
+	{
+		return;
+	}
+	AKartWeapon* Weapon = CurrentWeapon;
+	CurrentWeapon = nullptr;
+	OnRep_CurrentWeapon();
+	Weapon->Destroy();
 }
 
 bool UKartWeaponComponent::GiveWeapon(UKartWeaponData* Data)

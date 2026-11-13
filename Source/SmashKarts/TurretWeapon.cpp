@@ -81,7 +81,7 @@ AActor* ATurretWeapon::FindTarget() const
 	for (TActorIterator<AKartCharacter> It(GetWorld()); It; ++It)
 	{
 		AKartCharacter* Other = *It;
-		if (Other == Kart)
+		if (Other == Kart || Other->IsEliminated())
 		{
 			continue;
 		}

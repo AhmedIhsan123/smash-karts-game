@@ -13,7 +13,8 @@ $Project = Join-Path $Repo "SmashKarts.uproject"
 $Batch = Join-Path $EngineDir "Engine\Build\BatchFiles"
 
 if ($GenerateProjectFiles) {
-    & (Join-Path $Batch "GenerateProjectFiles.bat") "-project=$Project" -game
+    # Installed (Launcher) engines have no GenerateProjectFiles.bat: ask UBT directly
+    & (Join-Path $Batch "Build.bat") -projectfiles "-project=$Project" -game -rocket -progress
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 

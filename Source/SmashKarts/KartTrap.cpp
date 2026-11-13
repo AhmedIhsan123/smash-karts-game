@@ -5,7 +5,12 @@
 #include "Components/StaticMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Net/UnrealNetwork.h"
+#include "NiagaraFunctionLibrary.h"
+#include "NiagaraSystem.h"
 #include "TimerManager.h"
+#include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerState.h"
+#include "Engine/World.h"
 
 AKartTrap::AKartTrap()
 {
@@ -31,11 +36,22 @@ void AKartTrap::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetim
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	DOREPLIFETIME(AKartTrap, WeaponData);
+	DOREPLIFETIME(AKartTrap, OwnerPlayerState);
 }
 
 void AKartTrap::InitTrap(UKartWeaponData* InData)
 {
 	WeaponData = InData;
+	if (const APawn* Dropper = GetInstigator())
+	{
+		OwnerController = Dropper->GetController();
+		OwnerPlayerState = Dropper->GetPlayerState();
+	}
+}
+
+void AKartTrap::OnRep_OwnerPlayerState()
+{
+	UpdateOwnerColor();
 }
 
 void AKartTrap::BeginPlay()
@@ -73,8 +89,24 @@ void AKartTrap::OnRep_Instigator()
 
 void AKartTrap::UpdateOwnerColor()
 {
-	const APawn* Dropper = GetInstigator();
-	OnOwnerColor(Dropper && Dropper->IsLocallyControlled());
+	bool bIsMine = false;
+	if (OwnerPlayerState)
+	{
+		for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+		{
+			const APlayerController* PC = It->Get();
+			if (PC && PC->IsLocalController() && PC->PlayerState == OwnerPlayerState)
+			{
+				bIsMine = true;
+				break;
+			}
+		}
+	}
+	else if (const APawn* Dropper = GetInstigator())
+	{
+		bIsMine = Dropper->IsLocallyControlled();
+	}
+	OnOwnerColor(bIsMine);
 }
 
 void AKartTrap::Arm()
@@ -106,10 +138,12 @@ void AKartTrap::TryTrigger(AActor* OtherActor)
 	{
 		return;
 	}
-	if (Cast<AKartCharacter>(OtherActor))
+	const AKartCharacter* Kart = Cast<AKartCharacter>(OtherActor);
+	if (!Kart || Kart->IsEliminated() || (OwnerPlayerState && Kart->GetPlayerState() == OwnerPlayerState)) // still safe after respawning
 	{
-		Detonate(OtherActor);
+		return;
 	}
+	Detonate(OtherActor);
 }
 
 void AKartTrap::Detonate(AActor* Victim)
@@ -118,7 +152,7 @@ void AKartTrap::Detonate(AActor* Victim)
 
 	if (WeaponData && WeaponData->TrapDamage > 0.f)
 	{
-		UGameplayStatics::ApplyDamage(Victim, WeaponData->TrapDamage, GetInstigatorController(), this,
+		UGameplayStatics::ApplyDamage(Victim, WeaponData->TrapDamage, OwnerController.IsValid() ? OwnerController.Get() : GetInstigatorController(), this,
 			WeaponData->GetDamageTypeOrDefault());
 	}
 
@@ -133,4 +167,12 @@ void AKartTrap::Multicast_Detonate_Implementation(FVector Location)
 {
 	SetActorHiddenInGame(true);
 	OnDetonateFX(Location);
+}
+
+void AKartTrap::OnDetonateFX_Implementation(FVector Location)
+{
+	if (DetonateFX)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, DetonateFX, Location, FRotator::ZeroRotator, FVector(DetonateFXScale));
+	}
 }

@@ -9,7 +9,11 @@ class UStaticMeshComponent;
 class URotatingMovementComponent;
 class UKartWeaponData;
 
-/** Weapon pickup. Server-side overlap → weighted roll → give weapon → hide → respawn. */
+/**
+ * Weapon pickup. Server-side overlap → weighted roll → give weapon → hide → respawn.
+ * Authority: server only (overlap, roll, give). Replicates: bActive (RepNotify shows/hides the box).
+ * Client prediction: none. Only gives weapons while the match is InProgress; hidden in the lobby.
+ */
 UCLASS()
 class SMASHKARTS_API ALootBox : public AActor
 {
@@ -19,6 +23,12 @@ public:
 	ALootBox();
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	// Server: cancel any respawn timer and force the box on/off (match start / lobby)
+	void ResetBox(bool bInActive);
+
+	// Server: give to karts already sitting inside the box (match start, respawn)
+	void RecheckOverlaps();
 
 protected:
 	virtual void BeginPlay() override;
