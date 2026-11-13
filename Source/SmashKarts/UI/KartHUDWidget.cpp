@@ -20,7 +20,7 @@
 
 namespace
 {
-	const FLinearColor Gold(1.f, 0.82f, 0.2f);
+	const FLinearColor HudGold(1.f, 0.82f, 0.2f);
 	const FLinearColor SoftWhite(0.92f, 0.92f, 0.92f);
 	constexpr int32 KillFeedMax = 5;
 	constexpr double KillFeedLifetime = 7.0;
@@ -53,7 +53,7 @@ void UKartHUDWidget::BuildTree()
 	AddToCanvas(Root, KillFeedBox, FAnchors(1.f, 0.f), FVector2D(1.f, 0.f), FVector2D(-24.f, 20.f));
 
 	// Centre: big message + sub line
-	CenterText = MakeText(TEXT(""), 64, Gold);
+	CenterText = MakeText(TEXT(""), 64, HudGold);
 	AddToCanvas(Root, CenterText, FAnchors(0.5f, 0.35f), FVector2D(0.5f, 0.5f), FVector2D::ZeroVector);
 	SubText = MakeText(TEXT(""), 26);
 	AddToCanvas(Root, SubText, FAnchors(0.5f, 0.35f), FVector2D(0.5f, 0.f), FVector2D(0.f, 48.f));
@@ -164,7 +164,7 @@ void UKartHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	FString Timer;
 	FString Phase;
 	FString Center;
-	FLinearColor CenterColor = Gold;
+	FLinearColor CenterColor = HudGold;
 	FString Hint = TEXT("W/S drive   A/D steer   Space fire   Tab scores");
 	const int32 NumPlayers = GS->PlayerArray.Num();
 

@@ -19,7 +19,7 @@ namespace
 {
 	// Column widths: rank, colour, name, score, elims, deaths, ping
 	const float ColumnWidths[] = { 50.f, 26.f, 260.f, 90.f, 90.f, 90.f, 80.f };
-	const FLinearColor Gold(1.f, 0.82f, 0.2f);
+	const FLinearColor BoardGold(1.f, 0.82f, 0.2f);
 }
 
 void UKartScoreboardWidget::BuildTree()
@@ -33,7 +33,7 @@ void UKartScoreboardWidget::BuildTree()
 	UVerticalBox* Column = WidgetTree->ConstructWidget<UVerticalBox>();
 	Panel->SetContent(Column);
 
-	TitleText = MakeText(TEXT("SCOREBOARD"), 34, Gold);
+	TitleText = MakeText(TEXT("SCOREBOARD"), 34, BoardGold);
 	Column->AddChildToVerticalBox(TitleText)->SetHorizontalAlignment(HAlign_Center);
 
 	Rows = WidgetTree->ConstructWidget<UVerticalBox>();
@@ -174,7 +174,7 @@ void UKartScoreboardWidget::Rebuild()
 		FLinearColor TextColor = FLinearColor::White;
 		if (bResults && i == 0)
 		{
-			TextColor = Gold;
+			TextColor = BoardGold;
 		}
 		else if (PS == LocalPS)
 		{

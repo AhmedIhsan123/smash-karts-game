@@ -2,6 +2,16 @@
 
 ## Unreleased (`finish-game`)
 
+### Phase 4 — Nov 12 (menus + direct IP)
+- **Main menu** (`L_MainMenu`, `AKartMenuGameMode`): name (saved), Host Game, Join Game by IP (last address remembered), Settings, Quit, and the last connection message.
+- **Settings**: master volume, resolution, window mode, quality preset (GameUserSettings), controls list. Same panel in the pause menu.
+- **Game instance**: host = listen server on the arena map; join = `ClientTravel` with our `?SKName=` option; leave; errors become menu messages: "The host left the game", "Couldn't connect…" (15–20 s instead of 60), "That game is full", version mismatch. Tested headless (join from the menu with a name, host quits, dead port).
+- **Lobby overlay**: players with colours + host badge, Start Match and 2/3/5-minute buttons for the host, the host's addresses with hints (LAN / Radmin / ZeroTier).
+- **Pause menu** (Esc or P): Resume, Settings, Leave Match, End Match (host); kart ignores keys while it's open. **Results** buttons: Play Again, Back to Lobby (host), Leave. Cursor shows in lobby / results / menu only.
+- **Name tags** (name + health bar, hidden on your own kart) and **floating damage numbers** for the attacker (machine-gun hits merge into one number).
+- Config: main menu is the game's default map, `ArenaMapOverride` (L_Test until the arena exists), `KartGameInstance`, ray tracing off, window title, maps to cook + always cook `/Game/SmashKarts`.
+- `Docs/HOSTING.md` (LAN, Radmin VPN, ZeroTier, port forwarding, firewall, troubleshooting).
+
 ### Checkpoint 2 feedback — Nov 12
 - **Cannon Balls**: no sideways fan; the 4 balls fly straight ahead and land in a line 350 cm apart, the first ball farthest (new `VolleyLineSpacing`, speed per ball from flat-ground ballistics, unit-tested).
 - **Bullets**: one press fires everything: 6 rounds, 0.12 s apart, of 3 bullets side by side (Uses 1, BurstCount 6, ProjectilesPerShot 3).
