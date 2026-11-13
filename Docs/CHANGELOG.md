@@ -2,6 +2,9 @@
 
 ## Unreleased (`finish-game`)
 
+### Checkpoint 3 — Nov 12
+- Passed: packaged build, two windows on one PC and two PCs on a LAN (menus, lobby, match, pause/settings, leave/rejoin, host-left message, saved name).
+
 ### Phase 4 — Nov 12 (menus + direct IP)
 - **Main menu** (`L_MainMenu`, `AKartMenuGameMode`): name (saved), Host Game, Join Game by IP (last address remembered), Settings, Quit, and the last connection message.
 - **Settings**: master volume, resolution, window mode, quality preset (GameUserSettings), controls list. Same panel in the pause menu.
