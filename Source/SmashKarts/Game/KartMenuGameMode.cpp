@@ -25,6 +25,7 @@ void AKartMenuPlayerController::BeginPlay()
 	MenuWidget = CreateWidget<UKartMainMenuWidget>(this, UKartMainMenuWidget::StaticClass());
 	if (MenuWidget)
 	{
+		MenuWidget->SetIsFocusable(true); // UIOnly input mode focuses it (typing in the name / IP fields)
 		MenuWidget->AddToViewport(0);
 		FInputModeUIOnly Mode;
 		Mode.SetWidgetToFocus(MenuWidget->TakeWidget());

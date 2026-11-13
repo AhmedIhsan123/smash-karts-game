@@ -11,6 +11,7 @@
 - **Name tags** (name + health bar, hidden on your own kart) and **floating damage numbers** for the attacker (machine-gun hits merge into one number).
 - Config: main menu is the game's default map, `ArenaMapOverride` (L_Test until the arena exists), `KartGameInstance`, ray tracing off, window title, maps to cook + always cook `/Game/SmashKarts`.
 - `Docs/HOSTING.md` (LAN, Radmin VPN, ZeroTier, port forwarding, firewall, troubleshooting).
+- **First packaged build** (Development, Win64, ~1 GB, zip 504 MB): tested headless with the packaged exe: host + client joining from the main menu by name, full scripted match, host quits (client shows "The host left the game"), dead address ("Couldn't connect"). Fixed a unity-build name clash and two log errors found in the packaged run. `Docs/HOW_TO_PLAY.md`, `Play_Windowed.bat`.
 
 ### Checkpoint 2 feedback — Nov 12
 - **Cannon Balls**: no sideways fan; the 4 balls fly straight ahead and land in a line 350 cm apart, the first ball farthest (new `VolleyLineSpacing`, speed per ball from flat-ground ballistics, unit-tested).

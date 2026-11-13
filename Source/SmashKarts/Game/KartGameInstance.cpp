@@ -45,7 +45,9 @@ void UKartGameInstance::Shutdown()
 
 void UKartGameInstance::LoadSettings()
 {
-	Settings = Cast<UKartSaveGame>(UGameplayStatics::LoadGameFromSlot(SettingsSlot, 0));
+	Settings = UGameplayStatics::DoesSaveGameExist(SettingsSlot, 0)
+		? Cast<UKartSaveGame>(UGameplayStatics::LoadGameFromSlot(SettingsSlot, 0))
+		: nullptr;
 	if (!Settings)
 	{
 		Settings = Cast<UKartSaveGame>(UGameplayStatics::CreateSaveGameObject(UKartSaveGame::StaticClass()));
