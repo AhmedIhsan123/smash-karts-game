@@ -2,6 +2,15 @@
 
 ## Unreleased (`finish-game`)
 
+### Phase 6 — Nov 12 (arena blockout)
+- **`L_Arena_01`** (built by `Tools/EditorScripts/sk_build_arena.py`, re-runnable): 56 × 56 m inside 6 m walls. Open centre inside a broken ring of 2.5 m cover walls (5 m gaps = choke points for mines and Spike Strips); the ring route around it.
+  NE and SW: 8 × 8 m platforms, 1.5 m high, two 18° ramps each (loot box on top). NW and SE: 6 × 6 m pits with 50 cm red curbs: you can't drive in (step height 30 cm), but knockback can throw you in (KillZ −500, falls credit the last attacker).
+  Cover blocks north, south and west; a kicker ramp on the east lane that jumps toward the NE platform. 10 PlayerStarts around the edge facing the centre, 9 loot boxes (centre, the four ring gaps, both platforms, next to both pits).
+  Lighting like L_Test (sun, sky atmosphere, real-time sky light, height fog) + an unbound post-process volume. Engine grid floor and seven flat colours (`Arena/Materials`); dressing with human-made packs comes when they're in the project.
+- **`SK.AutoTest 2 quit arena`**: every PlayerStart is clear of geometry and on the floor, every loot box is on the floor, and the host kart is driven up all four ramps (climbs 141 cm) and over the kicker. The full match loop also passes on the arena.
+- Hosting, the server default map and the editor startup map now use `L_Arena_01`. Version 0.5.0 (players on 0.4 get the version-mismatch message).
+- Packaged Development build (zip 458 MB): the arena self-test and the menu flow (join by name from the main menu, full match, host leaves, wrong address) pass with the packaged exe; Host Game opens `L_Arena_01`.
+
 ### Phase 5 — Nov 12 (tier 3 weapons)
 - **Mace Orbit** (buff, 6 s): 5 spiked maces orbit the kart at 150 cm; anyone they reach is smashed (100, kill feed "Mace Orbit"); +25 % speed, −10 % damage taken (from phase 2).
 - **Tesla Coil** (buff, 5 s): zaps every enemy kart within 500 cm that it can see, right away and then every 0.5 s (10 zaps max, 10 damage each); flickering blue aura, a faint ring on the ground showing the range, jagged beams to each target.

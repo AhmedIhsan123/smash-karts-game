@@ -27,6 +27,11 @@ score the most smashes before the timer runs out.
 - Falling off the arena costs you a life; if someone hit you in the last 5 seconds, they get the point.
 - Most smashes wins. Ties: fewer deaths, then who joined first.
 
+## The arena
+- Open centre inside a ring of low walls; the gaps in the ring are great spots for mines and spike strips.
+- Two raised platforms (ramps on two sides, a **?** box on top) and a kicker ramp for jumps.
+- Two pits with red curbs. You can't drive in, but explosions can throw you in, and that costs you a life (the thrower gets the point).
+
 ## Weapons
 | Weapon | What it does |
 |---|---|
