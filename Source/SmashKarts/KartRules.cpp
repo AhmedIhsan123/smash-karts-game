@@ -99,6 +99,26 @@ FString KartRules::SanitizePlayerName(const FString& InName, int32 MaxLength)
 	return Out.Left(FMath::Max(1, MaxLength));
 }
 
+KartRules::FContactResult KartRules::ResolveContact(const FContactSide& A, const FContactSide& B, bool bTouching,
+	bool bAReachesB, bool bBReachesA, bool bARamsB, bool bBRamsA)
+{
+	auto Hits = [bTouching](const FContactSide& Attacker, const FContactSide& Victim, bool bReaches, bool bRams)
+	{
+		if (Victim.bInvincible)
+		{
+			return false; // nothing beats invincibility (two invincible karts just bounce)
+		}
+		return (Attacker.bInvincible && bTouching)
+			|| (Attacker.bSpiky && bReaches)
+			|| (Victim.bFrozen && bRams);
+	};
+
+	FContactResult Result;
+	Result.bAHitsB = Hits(A, B, bAReachesB, bARamsB);
+	Result.bBHitsA = Hits(B, A, bBReachesA, bBRamsA);
+	return Result;
+}
+
 double KartTime::ServerNow(const UObject* WorldContext)
 {
 	const UWorld* World = WorldContext ? WorldContext->GetWorld() : nullptr;

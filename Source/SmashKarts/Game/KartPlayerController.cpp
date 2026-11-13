@@ -156,6 +156,16 @@ void AKartPlayerController::RunDebugCommand(const FString& Command)
 		bShowNetOverlay = !bShowNetOverlay; // local only
 		return;
 	}
+	if (Name.StartsWith(TEXT("AutoDrive"), ESearchCase::IgnoreCase))
+	{
+		// Local: the kart drives itself exactly like held keys (predicted moves), for network tests
+		TArray<FString> Args;
+		Name.ParseIntoArrayWS(Args);
+		AutoDriveEndTime = GetWorld()->GetTimeSeconds() + (Args.Num() >= 2 ? FCString::Atof(*Args[1]) : 30.f);
+		AutoDriveSteer = Args.Num() >= 3 ? FCString::Atof(*Args[2]) : 0.6f;
+		ReapplyAutoDrive();
+		return;
+	}
 	if (HasAuthority())
 	{
 		HandleDebugCommand(Name);
@@ -257,12 +267,59 @@ void AKartPlayerController::HandleDebugCommand(const FString& Command)
 	else if (Cmd.Equals(TEXT("AutoTest"), ESearchCase::IgnoreCase))
 	{
 		const int32 Players = Args.Num() >= 2 ? FMath::Max(1, FCString::Atoi(*Args[1])) : 2;
-		const bool bQuit = Args.Num() >= 3 && Args[2].Equals(TEXT("quit"), ESearchCase::IgnoreCase);
-		FKartAutoTest::Start(GetWorld(), Players, bQuit);
+		bool bQuit = false;
+		FString Scenario = TEXT("loop");
+		for (int32 i = 2; i < Args.Num(); ++i)
+		{
+			if (Args[i].Equals(TEXT("quit"), ESearchCase::IgnoreCase))
+			{
+				bQuit = true;
+			}
+			else
+			{
+				Scenario = Args[i];
+			}
+		}
+		FKartAutoTest::Start(GetWorld(), Players, bQuit, Scenario);
 	}
 	else
 	{
 		UE_LOG(LogSmashKarts, Warning, TEXT("[Debug] Unknown or incomplete command: %s"), *Command);
 	}
+#endif
+}
+
+void AKartPlayerController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+	if (IsLocalController())
+	{
+		ReapplyAutoDrive(); // host: new kart after a respawn
+	}
+}
+
+void AKartPlayerController::AcknowledgePossession(APawn* P)
+{
+	Super::AcknowledgePossession(P);
+	ReapplyAutoDrive(); // client: new kart after a respawn
+}
+
+void AKartPlayerController::ReapplyAutoDrive()
+{
+#if !UE_BUILD_SHIPPING
+	const double Remaining = AutoDriveEndTime - GetWorld()->GetTimeSeconds();
+	AKartCharacter* Kart = Cast<AKartCharacter>(GetPawn());
+	if (Kart && Remaining > 0.0)
+	{
+		Kart->SetDebugAutoDrive(static_cast<float>(Remaining), AutoDriveSteer);
+	}
+#endif
+}
+
+void AKartPlayerController::Client_DebugExec_Implementation(const FString& Command)
+{
+#if !UE_BUILD_SHIPPING
+	UE_LOG(LogSmashKarts, Log, TEXT("[Debug] Host asked this client to run: %s"), *Command);
+	ConsoleCommand(Command.Left(256));
 #endif
 }

@@ -21,10 +21,43 @@ void UKartWeaponComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>&
 
 void UKartWeaponComponent::FirePressed()
 {
-	if (CurrentWeapon) // skip the RPC if we have nothing to fire
+	if (!CurrentWeapon) // skip the RPC if we have nothing to fire
 	{
-		Server_Fire(0.f);
+		return;
 	}
+	const UKartWeaponData* Data = CurrentWeapon->GetWeaponData();
+	if (Data && Data->bChargeThrow)
+	{
+		bCharging = true;
+		ChargeStartTime = GetWorld()->GetTimeSeconds();
+		return;
+	}
+	Server_Fire(0.f);
+}
+
+void UKartWeaponComponent::FireReleased()
+{
+	if (!bCharging)
+	{
+		return;
+	}
+	const float Alpha = GetChargeAlpha();
+	bCharging = false;
+	if (CurrentWeapon)
+	{
+		Server_Fire(Alpha);
+	}
+}
+
+float UKartWeaponComponent::GetChargeAlpha() const
+{
+	if (!bCharging || !CurrentWeapon)
+	{
+		return 0.f;
+	}
+	const UKartWeaponData* Data = CurrentWeapon->GetWeaponData();
+	const float FullTime = FMath::Max(0.05f, Data ? Data->ChargeTime : 1.f);
+	return FMath::Clamp(static_cast<float>(GetWorld()->GetTimeSeconds() - ChargeStartTime) / FullTime, 0.f, 1.f);
 }
 
 void UKartWeaponComponent::Server_Fire_Implementation(float ChargeAlpha)
@@ -96,6 +129,7 @@ void UKartWeaponComponent::ClearWeapon(AKartWeapon* Weapon)
 
 void UKartWeaponComponent::OnRep_CurrentWeapon()
 {
+	bCharging = false; // a charge never carries over to another weapon
 	OnWeaponChanged.Broadcast(CurrentWeapon);
 }
 

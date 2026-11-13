@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "KartStatusComponent.h"
 #include "KartWeaponData.generated.h"
 
 class AKartWeapon;
@@ -64,6 +65,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
 	TSubclassOf<UDamageType> DamageType;
 
+	// Colour of the generated HUD icon (square with initials) when Icon is empty
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon")
+	FLinearColor HudColor = FLinearColor(0.9f, 0.5f, 0.1f);
+
 	// ---------------- Projectile ----------------
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	TSubclassOf<AKartProjectile> ProjectileClass;
@@ -106,6 +111,84 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
 	float SplashMinDamage = 5.f;
+
+	// Lob angle above the kart's forward direction (degrees). 0 = flat
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	float LaunchPitchDegrees = 0.f;
+
+	// >0: the ProjectilesPerShot fan out evenly over this yaw angle instead of flying side by side
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile", meta = (ClampMin = "0"))
+	float VolleySpreadDegrees = 0.f;
+
+	// Direct damage falls off with distance travelled: DirectDamage at the muzzle, DirectDamageFar at MaxRange. 0 = off
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile", meta = (ClampMin = "0"))
+	float MaxRange = 0.f;
+
+	// Direct damage at MaxRange (-1 = same as DirectDamage)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile")
+	float DirectDamageFar = -1.f;
+
+	// ---------------- Projectile: charge throw (hold Space) ----------------
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Charge")
+	bool bChargeThrow = false;
+
+	// Seconds of holding for full power
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Charge", meta = (ClampMin = "0.05"))
+	float ChargeTime = 1.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Charge", meta = (ClampMin = "0"))
+	float ChargeSpeedMin = 800.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Charge", meta = (ClampMin = "0"))
+	float ChargeSpeedMax = 3000.f;
+
+	// ---------------- Projectile: homing ----------------
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Homing")
+	bool bHoming = false;
+
+	// Flies straight for this long before looking for a target
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Homing", meta = (ClampMin = "0"))
+	float HomingDelay = 0.5f;
+
+	// Full cone angle in front of the missile where targets are picked
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Homing", meta = (ClampMin = "1", ClampMax = "360"))
+	float HomingConeDegrees = 90.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Homing", meta = (ClampMin = "0"))
+	float HomingRange = 3500.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Homing", meta = (ClampMin = "0"))
+	float HomingAcceleration = 16000.f;
+
+	// Explodes (as a direct hit) once this close to its target, so it never orbits a target it can't turn into
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Homing", meta = (ClampMin = "0"))
+	float HomingProximityFuse = 150.f;
+
+	// ---------------- Projectile: on hit / on landing ----------------
+	// Apply a status to the kart that gets hit directly (Snowball: Frozen)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Effect")
+	bool bApplyHitStatus = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Effect", meta = (EditCondition = "bApplyHitStatus"))
+	EKartStatus HitStatus = EKartStatus::Frozen;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Effect", meta = (EditCondition = "bApplyHitStatus"))
+	float HitStatusDuration = 3.f;
+
+	// Sticks to whatever it hits (floor, walls, karts) and becomes a bomb: proximity trigger or fuse
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Sticky")
+	bool bStickOnImpact = false;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Sticky", meta = (EditCondition = "bStickOnImpact", ClampMin = "0"))
+	float StickyFuseTime = 5.f;
+
+	// An enemy kart this close starts the alarm
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Sticky", meta = (EditCondition = "bStickOnImpact", ClampMin = "0"))
+	float StickyProximityRadius = 400.f;
+
+	// Seconds between the alarm and the explosion
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Projectile|Sticky", meta = (EditCondition = "bStickOnImpact", ClampMin = "0"))
+	float StickyAlarmTime = 0.5f;
 
 	// ---------------- Trap ----------------
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Trap")

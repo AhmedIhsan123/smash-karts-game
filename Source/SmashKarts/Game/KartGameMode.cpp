@@ -38,6 +38,12 @@ AKartGameMode::AKartGameMode()
 	SpawnOccupiedRadius = 250.f;
 	SpawnRandomTopN = 3;
 
+	ContactSmashDamage = 100.f;
+	SpikyReach = 200.f;
+	ContactTouchSlack = 15.f;
+	RamMinSpeed = 300.f;
+	ContactCooldown = 0.5f;
+
 	bDelayedStart = true; // the host starts the match from the lobby
 }
 
@@ -388,6 +394,110 @@ void AKartGameMode::KartEliminated(AKartCharacter* Victim, AController* Killer, 
 	{
 		Victim->SetLifeSpan(RespawnDelay); // nobody to respawn (bot / left)
 	}
+}
+
+// =====================================================================
+// Contact smash
+// =====================================================================
+
+void AKartGameMode::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	ResolveKartContacts();
+}
+
+void AKartGameMode::ResolveKartContacts()
+{
+	TArray<AKartCharacter*> Karts;
+	for (TActorIterator<AKartCharacter> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsEliminated() && It->GetStatusComponent())
+		{
+			Karts.Add(*It);
+		}
+	}
+
+	auto SideOf = [](const AKartCharacter* Kart)
+	{
+		KartRules::FContactSide Side;
+		Side.bInvincible = Kart->HasStatus(EKartStatus::Invincible);
+		Side.bSpiky = Kart->HasStatus(EKartStatus::Spiky);
+		Side.bFrozen = Kart->HasStatus(EKartStatus::Frozen);
+		return Side;
+	};
+
+	for (int32 i = 0; i < Karts.Num(); ++i)
+	{
+		for (int32 j = i + 1; j < Karts.Num(); ++j)
+		{
+			AKartCharacter* A = Karts[i];
+			AKartCharacter* B = Karts[j];
+			const KartRules::FContactSide SideA = SideOf(A);
+			const KartRules::FContactSide SideB = SideOf(B);
+			if (!SideA.bInvincible && !SideA.bSpiky && !SideB.bInvincible && !SideB.bSpiky)
+			{
+				continue; // only buffs act at a distance; rams on frozen karts come through HandleKartRam
+			}
+			const float Distance = static_cast<float>(FVector::Dist(A->GetActorLocation(), B->GetActorLocation()));
+			const float TouchDistance = A->GetSimpleCollisionRadius() + B->GetSimpleCollisionRadius() + ContactTouchSlack;
+			const bool bTouching = Distance <= TouchDistance;
+			const bool bInReach = Distance <= SpikyReach;
+
+			const KartRules::FContactResult Result = KartRules::ResolveContact(SideA, SideB, bTouching, bInReach, bInReach, false, false);
+			if (Result.bAHitsB)
+			{
+				ApplyContactSmash(A, B, SideA.bInvincible ? InvincibleContactDamageType : SpikyContactDamageType);
+			}
+			if (Result.bBHitsA)
+			{
+				ApplyContactSmash(B, A, SideB.bInvincible ? InvincibleContactDamageType : SpikyContactDamageType);
+			}
+		}
+	}
+}
+
+void AKartGameMode::HandleKartRam(AKartCharacter* Rammer, AKartCharacter* Victim, float ClosingSpeed)
+{
+	if (!Rammer || !Victim || Rammer->IsEliminated() || Victim->IsEliminated())
+	{
+		return;
+	}
+	KartRules::FContactSide RammerSide;
+	RammerSide.bInvincible = Rammer->HasStatus(EKartStatus::Invincible);
+	RammerSide.bSpiky = Rammer->HasStatus(EKartStatus::Spiky);
+	KartRules::FContactSide VictimSide;
+	VictimSide.bInvincible = Victim->HasStatus(EKartStatus::Invincible);
+	VictimSide.bFrozen = Victim->HasStatus(EKartStatus::Frozen);
+
+	const bool bRam = ClosingSpeed >= RamMinSpeed;
+	const KartRules::FContactResult Result = KartRules::ResolveContact(RammerSide, VictimSide, true, false, false, bRam, false);
+	if (Result.bAHitsB && VictimSide.bFrozen && bRam)
+	{
+		ApplyContactSmash(Rammer, Victim, RamDamageType);
+	}
+}
+
+void AKartGameMode::ApplyContactSmash(AKartCharacter* Attacker, AKartCharacter* Victim, TSubclassOf<UDamageType> DamageType)
+{
+	const uint64 Key = (static_cast<uint64>(Attacker->GetUniqueID()) << 32) | static_cast<uint64>(Victim->GetUniqueID());
+	const double Time = Now();
+	if (const double* Last = ContactCooldowns.Find(Key))
+	{
+		if (Time - *Last < ContactCooldown)
+		{
+			return;
+		}
+	}
+	ContactCooldowns.Add(Key, Time);
+	if (ContactCooldowns.Num() > 256)
+	{
+		ContactCooldowns.Reset(); // stale pairs from destroyed karts
+		ContactCooldowns.Add(Key, Time);
+	}
+
+	UE_LOG(LogSmashKarts, Log, TEXT("[Game] Contact smash: %s -> %s"), *GetNameSafe(Attacker->GetPlayerState()), *GetNameSafe(Victim->GetPlayerState()));
+	UGameplayStatics::ApplyDamage(Victim, ContactSmashDamage, Attacker->GetController(), Attacker,
+		DamageType ? DamageType : TSubclassOf<UDamageType>(UDamageType::StaticClass()));
 }
 
 // =====================================================================

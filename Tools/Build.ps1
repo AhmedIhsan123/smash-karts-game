@@ -8,6 +8,12 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# An open editor locks assets, and UBT silently builds a hot-reload DLL into it. Refuse to run.
+if (Get-Process -Name UnrealEditor -ErrorAction SilentlyContinue) {
+    Write-Host "Unreal Editor is running. Close it first (save your work), then run this again."
+    exit 2
+}
 $Repo = Split-Path -Parent $PSScriptRoot
 $Project = Join-Path $Repo "SmashKarts.uproject"
 $Batch = Join-Path $EngineDir "Engine\Build\BatchFiles"

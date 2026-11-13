@@ -47,6 +47,10 @@ public:
 	UFUNCTION(Server, Reliable)
 	void Server_DebugCommand(const FString& Command);
 
+	/** Development: the host's test script runs a console command on this client (no-op in Shipping). */
+	UFUNCTION(Client, Reliable)
+	void Client_DebugExec(const FString& Command);
+
 	// ---------- Local UI state ----------
 	bool IsScoreboardHeld() const { return bScoreboardHeld; }
 	bool IsNetOverlayVisible() const { return bShowNetOverlay; }
@@ -81,4 +85,15 @@ private:
 
 	bool bScoreboardHeld = false;
 	bool bShowNetOverlay = false;
+
+	// Development: SK.AutoDrive keeps driving each new kart after a respawn until it runs out
+	double AutoDriveEndTime = 0.0;
+	float AutoDriveSteer = 0.6f;
+	void ReapplyAutoDrive();
+
+protected:
+	virtual void OnPossess(APawn* InPawn) override;
+
+public:
+	virtual void AcknowledgePossession(APawn* P) override;
 };

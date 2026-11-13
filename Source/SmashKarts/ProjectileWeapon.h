@@ -15,5 +15,5 @@ protected:
 	virtual void FireOnce(float ChargeAlpha) override;
 
 	// The one place that spawns a projectile (keeps the door open for client prediction later)
-	void SpawnProjectile(float ChargeAlpha, float SideOffset);
+	void SpawnProjectile(float ChargeAlpha, float SideOffset, float YawOffset);
 };

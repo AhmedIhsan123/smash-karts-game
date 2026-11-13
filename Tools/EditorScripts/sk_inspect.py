@@ -95,8 +95,31 @@ def dump_map(path):
             ws.get_editor_property("kill_z"), sk._short(ws.get_editor_property("default_game_mode"))))
 
 
+PROJECTILE_BPS = [
+    "/Game/SmashKarts/Weapons/Bullets/BP_Bullet",
+    "/Game/SmashKarts/Weapons/SeekerMissile/BP_SeekerMissile",
+    "/Game/SmashKarts/Weapons/CannonBalls/BP_CannonBall",
+    "/Game/SmashKarts/Weapons/StickyBomb/BP_StickyBomb",
+]
+
+
+def dump_projectile(path):
+    bp = sk.load(path)
+    if bp is None:
+        sk.log("PROJECTILE %s: MISSING" % path)
+        return
+    obj = sk.cdo(bp)
+    mesh = obj.get_editor_property("mesh")
+    col = obj.get_editor_property("collision")
+    sk.log("PROJECTILE %s mesh=%s scale=%s radius=%.0f tint=%s fx=%s" % (
+        path.split("/")[-1], sk._short(mesh.get_editor_property("static_mesh")), mesh.get_editor_property("relative_scale3d"),
+        col.get_editor_property("sphere_radius"), obj.get_editor_property("tint_color"), sk._short(obj.get_editor_property("explosion_fx"))))
+
+
 for p in BLUEPRINTS:
     dump_bp(p)
+for p in PROJECTILE_BPS:
+    dump_projectile(p)
 for p in DATA:
     dump_data(p)
 dump_map("/Game/SmashKarts/Maps/L_Test")

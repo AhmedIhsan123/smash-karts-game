@@ -20,8 +20,21 @@ public:
 
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	// Local (owning client or host): Fire key pressed
+	// Local (owning client or host): Fire key pressed. Charge weapons start charging instead of firing
 	void FirePressed();
+
+	// Local: Fire key released. Charge weapons fire now with the measured charge (0..1, clamped again on the server)
+	void FireReleased();
+
+	// Local: drop a charge in progress without firing (smashed, weapon gone)
+	void CancelCharge() { bCharging = false; }
+
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	bool IsCharging() const { return bCharging; }
+
+	// 0..1 while charging (local)
+	UFUNCTION(BlueprintPure, Category = "Weapon")
+	float GetChargeAlpha() const;
 
 	// Server: give a weapon (loot boxes call this). False if we already hold one
 	bool GiveWeapon(UKartWeaponData* Data);
@@ -53,4 +66,9 @@ protected:
 
 	UFUNCTION(Server, Reliable)
 	void Server_Fire(float ChargeAlpha);
+
+private:
+	// Local charge state (owning machine only, never replicated)
+	bool bCharging = false;
+	double ChargeStartTime = 0.0;
 };

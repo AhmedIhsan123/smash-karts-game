@@ -4,6 +4,7 @@
 #include "UI/KartWidgetBase.h"
 #include "KartHUDWidget.generated.h"
 
+class UBorder;
 class UCanvasPanel;
 class UProgressBar;
 class UTextBlock;
@@ -40,6 +41,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> HealthBar;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeaponText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> UsesText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> StatusText;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> ChargeBar;
+	UPROPERTY(Transient) TObjectPtr<UBorder> WeaponIcon;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeaponIconText;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> KillFeedBox;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> KillFeedLines;
 

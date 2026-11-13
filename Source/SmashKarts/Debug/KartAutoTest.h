@@ -9,10 +9,11 @@ class UWorld;
  * Runs on the host: waits for N players, starts a match, eliminates a client by damage and by falls,
  * checks scoring, respawn and spawn protection, ends the match, plays again and returns to the lobby.
  * Every step logs "[AutoTest] ..." to LogSmashKarts; the run ends with "[AutoTest] PASS" or "[AutoTest] FAIL".
- * Start it with: SK.AutoTest <players> [quit]
+ * Start it with: SK.AutoTest <players> [quit] [loop|status]. "status" tests freeze, invincibility, knockback
+ * and contact smash, and drives the client around (with 60 ms emulated lag) so corrections show in its log.
  */
 class SMASHKARTS_API FKartAutoTest
 {
 public:
-	static void Start(UWorld* World, int32 ExpectedPlayers, bool bQuitWhenDone);
+	static void Start(UWorld* World, int32 ExpectedPlayers, bool bQuitWhenDone, const FString& Scenario = TEXT("loop"));
 };

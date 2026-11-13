@@ -106,4 +106,48 @@ bool FKartNameSanitizeTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKartContactRulesTest, "SmashKarts.Rules.ContactSmash", KartTestFlags)
+bool FKartContactRulesTest::RunTest(const FString& Parameters)
+{
+	using namespace KartRules;
+	FContactSide Normal;
+	FContactSide Spiky;      Spiky.bSpiky = true;
+	FContactSide Invincible; Invincible.bInvincible = true;
+	FContactSide Frozen;     Frozen.bFrozen = true;
+
+	// Spiky vs normal: the spiky kart smashes, the normal one doesn't
+	FContactResult R = ResolveContact(Spiky, Normal, false, true, true, false, false);
+	TestTrue(TEXT("spiky smashes normal in reach"), R.bAHitsB);
+	TestFalse(TEXT("normal does not smash spiky"), R.bBHitsA);
+	R = ResolveContact(Spiky, Normal, false, false, false, false, false);
+	TestFalse(TEXT("out of reach: nothing"), R.bAHitsB || R.bBHitsA);
+
+	// Two spiky karts smash each other
+	R = ResolveContact(Spiky, Spiky, false, true, true, false, false);
+	TestTrue(TEXT("spiky vs spiky: both"), R.bAHitsB && R.bBHitsA);
+
+	// Invincible beats spiky; two invincible just bounce
+	R = ResolveContact(Invincible, Spiky, true, true, true, false, false);
+	TestTrue(TEXT("invincible smashes spiky on touch"), R.bAHitsB);
+	TestFalse(TEXT("spiky can't hurt invincible"), R.bBHitsA);
+	R = ResolveContact(Invincible, Normal, false, true, true, false, false);
+	TestFalse(TEXT("invincible needs to touch"), R.bAHitsB);
+	R = ResolveContact(Invincible, Invincible, true, true, true, true, true);
+	TestFalse(TEXT("invincible vs invincible: bounce"), R.bAHitsB || R.bBHitsA);
+
+	// Ramming a frozen kart
+	R = ResolveContact(Normal, Frozen, true, false, false, true, false);
+	TestTrue(TEXT("ram smashes frozen"), R.bAHitsB);
+	R = ResolveContact(Normal, Frozen, true, false, false, false, false);
+	TestFalse(TEXT("slow touch doesn't"), R.bAHitsB);
+	FContactSide FrozenInvincible; FrozenInvincible.bFrozen = true; FrozenInvincible.bInvincible = true;
+	R = ResolveContact(Normal, FrozenInvincible, true, false, false, true, false);
+	TestFalse(TEXT("invincible frozen kart can't be smashed"), R.bAHitsB);
+
+	// Normal vs normal touching: nothing
+	R = ResolveContact(Normal, Normal, true, true, true, true, true);
+	TestFalse(TEXT("normal bump: nothing"), R.bAHitsB || R.bBHitsA);
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

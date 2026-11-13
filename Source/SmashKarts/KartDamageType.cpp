@@ -17,3 +17,16 @@ bool UKartDamageType::WantsBigExplosion(TSubclassOf<UDamageType> DamageType)
 	const UKartDamageType* KartType = DamageType ? Cast<UKartDamageType>(DamageType->GetDefaultObject()) : nullptr;
 	return KartType && KartType->bBigDeathExplosion;
 }
+
+void UKartDamageType::GetKnockback(TSubclassOf<UDamageType> DamageType, float& OutStrength, float& OutUpward)
+{
+	const UKartDamageType* KartType = DamageType ? Cast<UKartDamageType>(DamageType->GetDefaultObject()) : nullptr;
+	OutStrength = KartType ? KartType->KnockbackStrength : 0.f;
+	OutUpward = KartType ? KartType->KnockbackUpward : 0.f;
+}
+
+bool UKartDamageType::IgnoresDamageReduction(TSubclassOf<UDamageType> DamageType)
+{
+	const UKartDamageType* KartType = DamageType ? Cast<UKartDamageType>(DamageType->GetDefaultObject()) : nullptr;
+	return KartType && KartType->bIgnoreDamageReduction;
+}

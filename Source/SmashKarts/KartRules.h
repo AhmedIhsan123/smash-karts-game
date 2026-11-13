@@ -36,6 +36,30 @@ namespace KartRules
 
 	/** Trims, strips control characters and clamps a player name. Empty input → empty output. */
 	SMASHKARTS_API FString SanitizePlayerName(const FString& InName, int32 MaxLength = 16);
+
+	/** One kart's side of a contact check. */
+	struct FContactSide
+	{
+		bool bInvincible = false;
+		bool bSpiky = false;
+		bool bFrozen = false;
+	};
+
+	struct FContactResult
+	{
+		bool bAHitsB = false;
+		bool bBHitsA = false;
+	};
+
+	/**
+	 * Contact smash rules (priority Invincible > Spiky > normal):
+	 * - an Invincible kart smashes a non-invincible kart it touches; two Invincible karts just bounce
+	 * - a Spiky kart smashes a non-invincible kart its maces reach; two Spiky karts smash each other
+	 * - ramming a Frozen kart smashes it (an Invincible kart can never be frozen)
+	 * bAReachesB = B is inside A's mace reach; bARamsB = A drove into B fast enough.
+	 */
+	SMASHKARTS_API FContactResult ResolveContact(const FContactSide& A, const FContactSide& B, bool bTouching,
+		bool bAReachesB, bool bBReachesA, bool bARamsB, bool bBRamsA);
 }
 
 namespace KartTime

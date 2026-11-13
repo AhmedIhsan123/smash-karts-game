@@ -56,9 +56,20 @@ void UKartStatusComponent::ApplyStatus(EKartStatus Status, float Duration)
 	{
 		return;
 	}
+	// Invincible karts can't be frozen; becoming invincible thaws you
+	if (Status == EKartStatus::Frozen && HasStatus(EKartStatus::Invincible))
+	{
+		return;
+	}
+	uint8 NewFlags = StatusFlags | ToBit(Status);
+	if (Status == EKartStatus::Invincible)
+	{
+		NewFlags &= ~ToBit(EKartStatus::Frozen);
+		EndServerTimes[static_cast<int32>(EKartStatus::Frozen)] = 0.0;
+	}
 	const int32 Index = static_cast<int32>(Status);
 	EndServerTimes[Index] = Duration > 0.f ? KartTime::ServerNow(this) + Duration : -1.0;
-	SetFlags(StatusFlags | ToBit(Status));
+	SetFlags(NewFlags);
 }
 
 void UKartStatusComponent::ClearStatus(EKartStatus Status)

@@ -68,6 +68,35 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapons")
 	TArray<TObjectPtr<UKartWeaponData>> WeaponCatalog;
 
+	// ---------------- Contact smash (Invincible > Spiky > normal; ramming a frozen kart) ----------------
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Contact", meta = (ClampMin = "0"))
+	float ContactSmashDamage;
+
+	/** Centre-to-centre distance at which a Spiky kart's maces hit another kart. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Contact", meta = (ClampMin = "0"))
+	float SpikyReach;
+
+	/** Extra gap on top of both capsule radii that still counts as touching. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Contact", meta = (ClampMin = "0"))
+	float ContactTouchSlack;
+
+	/** Closing speed (cm/s) needed for a hit on a frozen kart to count as a ram. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Contact", meta = (ClampMin = "0"))
+	float RamMinSpeed;
+
+	/** Seconds before the same attacker can smash the same victim again. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Contact", meta = (ClampMin = "0"))
+	float ContactCooldown;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Contact")
+	TSubclassOf<UDamageType> SpikyContactDamageType;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Contact")
+	TSubclassOf<UDamageType> InvincibleContactDamageType;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Contact")
+	TSubclassOf<UDamageType> RamDamageType;
+
 	// ---------------- Host actions (validated) ----------------
 	bool IsHost(const AController* Controller) const;
 	void RequestStartMatch(AController* Requester);
@@ -79,6 +108,11 @@ public:
 	// ---------------- Gameplay ----------------
 	/** Server: a kart hit 0 health or fell out of the world. Killer may be null. */
 	void KartEliminated(AKartCharacter* Victim, AController* Killer, TSubclassOf<UDamageType> DamageType, bool bFell);
+
+	/** Server: Rammer drove into Victim (blocking hit). Smashes frozen victims. */
+	void HandleKartRam(AKartCharacter* Rammer, AKartCharacter* Victim, float ClosingSpeed);
+
+	virtual void Tick(float DeltaSeconds) override;
 
 	// ---------------- Debug / tests (no-ops in Shipping where it matters) ----------------
 	void DebugSetMatchTimeRemaining(float Seconds);
@@ -126,6 +160,12 @@ private:
 	void RecheckLootBoxes();
 
 	int32 PickFreeColorIndex(const APlayerState* Ignore) const;
+
+	/** Spiky / Invincible reach checks between every pair of living karts. */
+	void ResolveKartContacts();
+	void ApplyContactSmash(AKartCharacter* Attacker, AKartCharacter* Victim, TSubclassOf<UDamageType> DamageType);
+
+	TMap<uint64, double> ContactCooldowns;
 
 	FTimerHandle CountdownTimer;
 	FTimerHandle MatchTimer;

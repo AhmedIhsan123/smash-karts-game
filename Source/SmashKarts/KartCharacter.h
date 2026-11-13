@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "KartStatusComponent.h"
 #include "KartCharacter.generated.h"
 
 // Forward declarations: "these types exist, I'll include them in the .cpp".
@@ -12,10 +13,10 @@
 class USpringArmComponent;
 class UCameraComponent;
 class UKartHealthComponent;
-class UKartStatusComponent;
 class UStaticMeshComponent;
 class UInputAction;
 class UInputMappingContext;
+class UMaterialInstanceDynamic;
 class UNiagaraSystem;
 class UDamageType;
 struct FInputActionValue;
@@ -25,12 +26,13 @@ class UKartWeaponComponent;
 /**
  * The player's kart.
  *
- * Authority: server applies damage, eliminations and status; the owning client drives (CMC prediction).
+ * Authority: server applies damage, knockback, eliminations and status; the owning client drives (CMC prediction).
  * Replicates: movement (CMC), bEliminated (RepNotify hides/disables the kart everywhere), death FX multicast;
- * components replicate health, status and the held weapon.
- * Client prediction: movement and steering (controller yaw) as before. Input is locked locally from
- * replicated state (eliminated / countdown / results); the movement component zeroes acceleration with the
- * same rule on both sides, so the lock is prediction-safe.
+ * components replicate health, status and the held weapon. Body colour comes from the replicated PlayerState.
+ * Client prediction: movement and steering (controller yaw). Input is locked locally from replicated state
+ * (eliminated / frozen / countdown / results) and the movement component zeroes acceleration with the same rule
+ * on both sides. Knockback: the server launches the kart and tells the owning client to launch itself too,
+ * so the owner sees it immediately; the CMC reconciles any difference with one small correction.
  */
 UCLASS()
 class SMASHKARTS_API AKartCharacter : public ACharacter
@@ -52,6 +54,12 @@ public:
 	/** Server: KillZ / kill volume. Routed to the game mode as an elimination instead of destroying the kart. */
 	virtual void FellOutOfWorld(const UDamageType& DmgType) override;
 
+	/** Called by the movement component on blocking hits (server and owning client). Used to detect rams. */
+	virtual void MoveBlockedBy(const FHitResult& Impact) override;
+
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
+
 	FORCEINLINE UKartWeaponComponent* GetWeaponComponent() const { return WeaponComponent; }
 	FORCEINLINE UKartHealthComponent* GetHealthComponent() const { return HealthComponent; }
 	FORCEINLINE UKartStatusComponent* GetStatusComponent() const { return StatusComponent; }
@@ -62,12 +70,21 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Kart")
 	bool IsEliminated() const { return bEliminated; }
 
-	/** True while the kart must not drive or fire: eliminated, countdown, results (later: frozen). Any machine. */
+	/** True if the status component has this status (any machine). */
+	bool HasStatus(EKartStatus Status) const;
+
+	/** True while the kart must not drive or fire: eliminated, frozen, countdown, results. Any machine. */
 	bool IsInputLocked() const;
+
+	/** Server: push the kart (adds to its velocity). The owning client predicts the same push. */
+	void ApplyKnockback(const FVector& LaunchVelocity);
 
 	/** Server: the last other player who damaged us, if it was within WindowSeconds. */
 	AController* GetRecentAttacker(float WindowSeconds) const;
 	TSubclassOf<UDamageType> GetRecentAttackType() const { return LastAttackType; }
+
+	/** Development: drive automatically for a while (network tests). Local only. */
+	void SetDebugAutoDrive(float Seconds, float Steer);
 
 protected:
 	// "virtual ... override" = overriding a parent method
@@ -86,9 +103,16 @@ protected:
 	UFUNCTION(NetMulticast, Unreliable)
 	void Multicast_EliminatedFX(bool bBigExplosion);
 
+	UFUNCTION(Client, Unreliable)
+	void Client_Knockback(FVector_NetQuantize LaunchVelocity);
+
 	/** Runs on every machine when the kart is smashed. Default: spawns DeathFX / BigDeathFX. Override in BP for more. */
 	UFUNCTION(BlueprintNativeEvent, Category = "Kart|FX")
 	void OnEliminatedFX(bool bBigExplosion);
+
+	/** Runs on every machine when a status turns on or off (VFX hook; the body tint is handled in C++). */
+	UFUNCTION(BlueprintNativeEvent, Category = "Kart|FX")
+	void OnStatusFX(EKartStatus Status, bool bActive);
 
 	// --- Input assets (assigned in BP_Kart, not hardcoded) ---
 	UPROPERTY(EditDefaultsOnly, Category = "Kart|Input")
@@ -118,6 +142,30 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Kart|FX", meta = (ClampMin = "0.05"))
 	float ProtectionBlinkPeriod;
 
+	// --- Look ---
+	/** Vector parameter on the kart body material that takes the player colour. */
+	UPROPERTY(EditDefaultsOnly, Category = "Kart|Look")
+	FName BodyColorParameter;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Kart|Look")
+	FLinearColor FrozenTint;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Kart|Look", meta = (ClampMin = "0", ClampMax = "1"))
+	float FrozenTintAmount;
+
+	// --- Combat tuning ---
+	/** Spiky (Mace Orbit) karts take this fraction of incoming damage. */
+	UPROPERTY(EditDefaultsOnly, Category = "Kart|Combat", meta = (ClampMin = "0"))
+	float SpikyDamageTakenMultiplier;
+
+	/** Knockback from an explosion's edge still pushes at least this fraction of full strength. */
+	UPROPERTY(EditDefaultsOnly, Category = "Kart|Combat", meta = (ClampMin = "0", ClampMax = "1"))
+	float MinKnockbackScale;
+
+	/** The owning client applies knockback immediately instead of waiting for the server correction. */
+	UPROPERTY(EditDefaultsOnly, Category = "Kart|Combat")
+	bool bPredictKnockbackOnOwner;
+
 	// --- Tuning ---
 	// Degrees per second at full speed. EditDefaultsOnly = editable in the BP's Class Defaults.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Kart|Steering", meta = (ClampMin = "0"))
@@ -144,6 +192,11 @@ private:
 	/** Kart visuals on/off: hidden when eliminated, blinking while spawn protected. Every machine. */
 	void UpdateVisibility();
 
+	/** Player colour (+ frozen tint) on the body material. Every machine. */
+	void UpdateBodyColor();
+
+	void HandleStatusChanged(uint8 OldFlags, uint8 NewFlags);
+
 	// --- Components ---
 	// VisibleAnywhere: you can see and edit the component's settings in BP, but can't swap the component itself.
 	// AllowPrivateAccess: lets Blueprint read a private member (otherwise BlueprintReadOnly + private = error).
@@ -165,6 +218,9 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Kart")
 	TObjectPtr<UKartStatusComponent> StatusComponent;
 
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> BodyMaterial;
+
 
 	/** Show the on-screen steering debug line (owning player only). */
 	UPROPERTY(EditAnywhere, Category = "Kart|Debug")
@@ -182,5 +238,10 @@ private:
 	double LastAttackTime = -1000.0;
 	TSubclassOf<UDamageType> LastAttackType;
 
+	// Development auto-drive (local)
+	double DebugAutoDriveUntil = 0.0;
+	float DebugAutoDriveSteer = 0.f;
+
 	void Fire();
+	void FireReleased();
 };

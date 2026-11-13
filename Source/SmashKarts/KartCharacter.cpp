@@ -7,8 +7,8 @@
 // The real includes for everything we forward-declared, plus what we call into
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "KartDamageType.h"
 #include "KartHealthComponent.h"
-#include "KartStatusComponent.h"
 #include "KartRules.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -18,6 +18,7 @@
 #include "KartWeaponComponent.h"
 #include "Game/KartGameMode.h"
 #include "Game/KartGameState.h"
+#include "Game/KartPlayerState.h"
 #include "Engine/DamageEvents.h"
 #include "Engine/LocalPlayer.h"
 #include "EnhancedInputComponent.h"
@@ -25,6 +26,7 @@
 #include "InputActionValue.h"
 #include "KartMovementComponent.h"
 #include "Engine/Engine.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Net/UnrealNetwork.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraSystem.h"
@@ -90,6 +92,14 @@ AKartCharacter::AKartCharacter(const FObjectInitializer& ObjectInitializer)
 	BigDeathFXScale = 3.f;
 	ProtectionBlinkPeriod = 0.2f;
 
+	BodyColorParameter = TEXT("Color");
+	FrozenTint = FLinearColor(0.55f, 0.85f, 1.f);
+	FrozenTintAmount = 0.75f;
+
+	SpikyDamageTakenMultiplier = 0.9f;
+	MinKnockbackScale = 0.3f;
+	bPredictKnockbackOnOwner = true;
+
 	bDebugSteer = false;
 }
 
@@ -113,6 +123,28 @@ void AKartCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	LogNetState(TEXT("BeginPlay"));
+
+	if (KartMesh && KartMesh->GetNumMaterials() > 0)
+	{
+		BodyMaterial = KartMesh->CreateDynamicMaterialInstance(0);
+	}
+	if (StatusComponent)
+	{
+		StatusComponent->OnStatusChanged.AddUObject(this, &AKartCharacter::HandleStatusChanged);
+	}
+	UpdateBodyColor();
+}
+
+void AKartCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	UpdateBodyColor(); // server: PlayerState is known now
+}
+
+void AKartCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+	UpdateBodyColor(); // clients: colour arrives with the PlayerState
 }
 
 void AKartCharacter::NotifyControllerChanged()
@@ -147,12 +179,18 @@ void AKartCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 		EIC->BindAction(SteerAction, ETriggerEvent::Triggered, this, &AKartCharacter::Steer);
 		EIC->BindAction(SteerAction, ETriggerEvent::Completed, this, &AKartCharacter::SteerReleased);
 		EIC->BindAction(FireAction, ETriggerEvent::Started, this, &AKartCharacter::Fire);
+		EIC->BindAction(FireAction, ETriggerEvent::Completed, this, &AKartCharacter::FireReleased); // charge throw release
 	}
+}
+
+bool AKartCharacter::HasStatus(EKartStatus Status) const
+{
+	return StatusComponent && StatusComponent->HasStatus(Status);
 }
 
 bool AKartCharacter::IsInputLocked() const
 {
-	if (bEliminated)
+	if (bEliminated || HasStatus(EKartStatus::Frozen))
 	{
 		return true;
 	}
@@ -185,6 +223,13 @@ void AKartCharacter::Steer(const FInputActionValue& Value) { RawSteerInput = Val
 // When steering is released, set the raw steer input to 0
 void AKartCharacter::SteerReleased() { RawSteerInput = 0.f; }
 
+void AKartCharacter::SetDebugAutoDrive(float Seconds, float Steer)
+{
+	DebugAutoDriveUntil = GetWorld()->GetTimeSeconds() + Seconds;
+	DebugAutoDriveSteer = FMath::Clamp(Steer, -1.f, 1.f);
+	UE_LOG(LogSmashKarts, Log, TEXT("[Debug] Auto-drive %.0f s, steer %.2f"), Seconds, DebugAutoDriveSteer);
+}
+
 void AKartCharacter::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
@@ -195,7 +240,25 @@ void AKartCharacter::Tick(float DeltaSeconds)
 	// Only the owning player has input; other copies of this kart skip steering.
 	if (!IsLocallyControlled()) return;
 
-	// Locked (smashed / countdown / results): let the wheel return to centre, don't turn
+	// Development: scripted driving for network tests (acts exactly like held keys)
+	if (DebugAutoDriveUntil > 0.0)
+	{
+		if (GetWorld()->GetTimeSeconds() < DebugAutoDriveUntil)
+		{
+			RawSteerInput = DebugAutoDriveSteer;
+			if (!IsInputLocked())
+			{
+				AddMovementInput(GetActorForwardVector(), 1.f);
+			}
+		}
+		else
+		{
+			DebugAutoDriveUntil = 0.0;
+			RawSteerInput = 0.f;
+		}
+	}
+
+	// Locked (smashed / frozen / countdown / results): let the wheel return to centre, don't turn
 	const float TargetSteer = IsInputLocked() ? 0.f : RawSteerInput;
 
 	// Pick how fast CurrentSteer moves: ramp up while a key is held, ease back when released
@@ -240,7 +303,7 @@ void AKartCharacter::UpdateVisibility()
 		return;
 	}
 	bool bVisible = !bEliminated;
-	if (bVisible && StatusComponent && StatusComponent->HasStatus(EKartStatus::SpawnProtected))
+	if (bVisible && HasStatus(EKartStatus::SpawnProtected))
 	{
 		const double Phase = FMath::Fmod(GetWorld()->GetTimeSeconds(), static_cast<double>(ProtectionBlinkPeriod));
 		bVisible = Phase < ProtectionBlinkPeriod * 0.6;
@@ -251,6 +314,39 @@ void AKartCharacter::UpdateVisibility()
 	}
 }
 
+void AKartCharacter::UpdateBodyColor()
+{
+	if (!BodyMaterial)
+	{
+		return;
+	}
+	const AKartPlayerState* PS = GetPlayerState<AKartPlayerState>();
+	FLinearColor Color = PS ? PS->GetPlayerColor() : FLinearColor(0.8f, 0.8f, 0.8f);
+	if (HasStatus(EKartStatus::Frozen))
+	{
+		Color = FLinearColor::LerpUsingHSV(Color, FrozenTint, FrozenTintAmount);
+	}
+	BodyMaterial->SetVectorParameterValue(BodyColorParameter, Color);
+}
+
+void AKartCharacter::HandleStatusChanged(uint8 OldFlags, uint8 NewFlags)
+{
+	UpdateBodyColor();
+	for (const EKartStatus Status : TEnumRange<EKartStatus>())
+	{
+		const uint8 Bit = UKartStatusComponent::ToBit(Status);
+		if ((OldFlags & Bit) != (NewFlags & Bit))
+		{
+			OnStatusFX(Status, (NewFlags & Bit) != 0);
+		}
+	}
+}
+
+void AKartCharacter::OnStatusFX_Implementation(EKartStatus Status, bool bActive)
+{
+	// Visual hooks for Blueprint children; the C++ default only tints the body (UpdateBodyColor)
+}
+
 float AKartCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	if (!HasAuthority() || bEliminated)
@@ -259,13 +355,17 @@ float AKartCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageE
 	}
 
 	// Damage modifiers before health: spawn protection / invincibility block everything
-	if (StatusComponent && (StatusComponent->HasStatus(EKartStatus::SpawnProtected) || StatusComponent->HasStatus(EKartStatus::Invincible)))
+	if (HasStatus(EKartStatus::SpawnProtected) || HasStatus(EKartStatus::Invincible))
 	{
 		return 0.f;
 	}
 
 	// Super handles radial falloff and returns the final amount
-	const float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+	if (HasStatus(EKartStatus::Spiky) && !UKartDamageType::IgnoresDamageReduction(DamageEvent.DamageTypeClass))
+	{
+		ActualDamage *= SpikyDamageTakenMultiplier;
+	}
 	if (!HealthComponent || ActualDamage <= 0.f)
 	{
 		return 0.f;
@@ -291,8 +391,79 @@ float AKartCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageE
 		{
 			Eliminate(false);
 		}
+		return ActualDamage;
+	}
+
+	// Survived: knockback from the damage type, away from the blast (scaled by falloff, slightly up)
+	float Strength = 0.f;
+	float Upward = 0.f;
+	UKartDamageType::GetKnockback(DamageEvent.DamageTypeClass, Strength, Upward);
+	if (Strength > 0.f || Upward > 0.f)
+	{
+		FVector From = GetActorLocation() - GetActorForwardVector();
+		float Scale = 1.f;
+		if (DamageEvent.IsOfType(FRadialDamageEvent::ClassID))
+		{
+			const FRadialDamageEvent& Radial = static_cast<const FRadialDamageEvent&>(DamageEvent);
+			From = Radial.Origin;
+			Scale = FMath::Max(MinKnockbackScale, Radial.Params.GetDamageScale(static_cast<float>(FVector::Dist(Radial.Origin, GetActorLocation()))));
+		}
+		else if (DamageCauser)
+		{
+			From = DamageCauser->GetActorLocation();
+		}
+		FVector Direction = (GetActorLocation() - From).GetSafeNormal2D();
+		if (Direction.IsNearlyZero())
+		{
+			Direction = -GetActorForwardVector().GetSafeNormal2D();
+		}
+		ApplyKnockback((Direction * Strength + FVector::UpVector * Upward) * Scale);
 	}
 	return ActualDamage;
+}
+
+void AKartCharacter::ApplyKnockback(const FVector& LaunchVelocity)
+{
+	if (!HasAuthority() || bEliminated || LaunchVelocity.IsNearlyZero())
+	{
+		return;
+	}
+	LaunchCharacter(LaunchVelocity, false, false);
+	if (bPredictKnockbackOnOwner && !IsLocallyControlled())
+	{
+		Client_Knockback(LaunchVelocity);
+	}
+	UE_LOG(LogSmashKarts, Verbose, TEXT("[Kart] %s knocked back %s"), *GetNameSafe(GetPlayerState()), *LaunchVelocity.ToCompactString());
+}
+
+void AKartCharacter::Client_Knockback_Implementation(FVector_NetQuantize LaunchVelocity)
+{
+	if (!HasAuthority() && !bEliminated)
+	{
+		LaunchCharacter(LaunchVelocity, false, false); // predicted; the server's version wins on correction
+	}
+}
+
+void AKartCharacter::MoveBlockedBy(const FHitResult& Impact)
+{
+	Super::MoveBlockedBy(Impact);
+
+	// Server: ramming a frozen kart smashes it (velocity is still the pre-impact one here)
+	if (!HasAuthority() || bEliminated)
+	{
+		return;
+	}
+	AKartCharacter* Other = Cast<AKartCharacter>(Impact.GetActor());
+	if (!Other || Other->IsEliminated())
+	{
+		return;
+	}
+	const FVector ToOther = (Other->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+	const float ClosingSpeed = static_cast<float>(FVector::DotProduct(GetVelocity() - Other->GetVelocity(), ToOther));
+	if (AKartGameMode* GM = GetWorld()->GetAuthGameMode<AKartGameMode>())
+	{
+		GM->HandleKartRam(this, Other, ClosingSpeed);
+	}
 }
 
 void AKartCharacter::FellOutOfWorld(const UDamageType& DmgType)
@@ -357,6 +528,10 @@ void AKartCharacter::OnRep_Eliminated()
 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	RawSteerInput = 0.f;
 	CurrentSteer = 0.f;
+	if (WeaponComponent)
+	{
+		WeaponComponent->CancelCharge();
+	}
 	UpdateVisibility();
 }
 
@@ -384,4 +559,19 @@ void AKartCharacter::Fire()
 	}
 	UE_LOG(LogSmashKarts, Verbose, TEXT("[Fire] pressed, has weapon: %s"), WeaponComponent->HasWeapon() ? TEXT("yes") : TEXT("no"));
 	WeaponComponent->FirePressed();
+}
+
+void AKartCharacter::FireReleased()
+{
+	if (WeaponComponent)
+	{
+		if (IsInputLocked())
+		{
+			WeaponComponent->CancelCharge();
+		}
+		else
+		{
+			WeaponComponent->FireReleased();
+		}
+	}
 }

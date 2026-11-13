@@ -96,6 +96,8 @@ def set_props(obj, label, **props):
         except Exception as exc:  # noqa: BLE001
             error("%s has no property %s (%s)" % (label, key, exc))
             continue
+        if isinstance(value, float) and isinstance(old, float) and abs(old - value) < 1e-4:
+            continue  # float32 storage vs Python double
         if old != value:
             obj.set_editor_property(key, value)
             log("%s.%s = %s" % (label, key, _short(value)))
