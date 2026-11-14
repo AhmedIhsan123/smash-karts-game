@@ -58,7 +58,7 @@ Respawn: the dead kart stays possessed and hidden (camera stays put), then is de
 | 5 | Tier 3 weapons | `BuffWeapon`, `KartStatusFXComponent`, trap box trigger + stay + status (Spike Strip), Snowball freeze hit, Tesla zap, Mace Orbit; `sk_phase5_setup.py` | ✅ Nov 12 (self-tested: `SK.AutoTest tier3`) |
 | 6 | Arena | `sk_build_arena.py` → `L_Arena_01` blockout, spawns, loot spots, KillZ, lighting; `SK.AutoTest arena` | ✅ CP4 passed Nov 12 (internet playtest; dressing waits for art packs) |
 | 7 | EOS | `Game/KartOnlineSubsystem` (EOS SDK via EOSShared: Device ID login, room-code sessions; `NetDriverEOS` P2P swapped in after login), menu/lobby/scoreboard room codes, secrets in gitignored `Config/Windows/WindowsEngine.ini` | 🔨 code done Nov 13 (self-tested without credentials) → needs your EOS portal values (`Docs/EOS_SETUP.md`) → 🛑 CP5 |
-| 8 | Extras + polish | Nuke, Fake Loot Box, Invincibility, audio, firing feel (`KartFeedback`: camera shakes, damage flash, Screen shake setting), balance (reverse cap done in phase 2) | 🔨 extras, loot box look and practice bots done Nov 12; camera shakes + damage flash Nov 13 (self-tested); audio and arena art wait for the packs |
+| 8 | Extras + polish | Nuke, Fake Loot Box, Invincibility, audio, firing feel (`KartFeedback`: camera shakes, damage flash, Screen shake setting), balance (reverse cap done in phase 2) | 🔨 extras, loot box look and practice bots done Nov 12; camera shakes + damage flash Nov 13; v0.6 test passed Nov 13; audio and arena art wait for the packs |
 | 9 | Ship | packaging, log cleanup, `HOW_TO_PLAY.md`, zip | ⏳ → 🛑 Final |
 
 Target dates: 0–3 by Nov 17 · 4–6 by Nov 22 · 7 by Nov 24 (EOS go/no-go) · 8–9 by Nov 29.

@@ -2,6 +2,9 @@
 
 ## Unreleased (`finish-game`)
 
+### v0.6 test — Nov 13
+- Passed: packaged v0.6 (IP only, `Build/KartArena_dev_v0.6.zip`): Nuke, Fake Loot Box, Invincibility, practice bots, camera shakes, damage flash and the Screen shake setting. Room codes aren't in this build yet (waiting on the EOS portal values, then checkpoint 5).
+
 ### Tools — Nov 13
 - `Tools/Package.ps1`: one command makes the friend zip (`Build\KartArena_dev_v0.6.zip`, or `-Configuration Shipping` without debug symbols). It mirrors Config/Content/Source into `%LOCALAPPDATA%\KartArenaPackage` and builds, cooks and packages that copy, so it works while the editor is open. Adds HOW_TO_PLAY.md, HOSTING.md and Play_Windowed.bat, and says whether online play (EOS credentials) is inside.
 
