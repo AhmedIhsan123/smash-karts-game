@@ -50,6 +50,10 @@ public:
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
 	int32 MatchDurationSeconds = 180;
 
+	/** Online room code friends type to join (shown in the lobby and scoreboard). Empty for direct-IP games. */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Match")
+	FString RoomCode;
+
 	/** Player colour palette, indexed by AKartPlayerState::ColorIndex. Not replicated: same defaults everywhere. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Players")
 	TArray<FLinearColor> PlayerColors;

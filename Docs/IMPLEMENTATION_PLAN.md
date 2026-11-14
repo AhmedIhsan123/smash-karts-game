@@ -15,6 +15,8 @@ Status key: ✅ done · 🔨 in progress · ⏳ next · 🛑 checkpoint (stop fo
 | 7 | No GameMode/State/PlayerState/PC/HUD/menu/session code exists. `BP_KartGameMode` is a `GameModeBase` child (DefaultPawn = BP_Kart). | Built in phase 1. BP_KartGameMode is reparented to `AKartGameMode`. |
 | 8 | No Python/editor-scripting plugins enabled. | Enabled (editor-only) in phase 0. |
 | 9 | No system Python. | Scripts run inside the editor (commandlet). The engine's bundled Python is at `Engine/Binaries/ThirdParty/Python3/Win64`. |
+| 10 | (Nov 13) OnlineSubsystemEOS can't log in with a Device ID on Windows (it never calls `EOS_Connect_CreateDeviceId` and builds without `UserLoginInfo`). | Phase 7 talks to the EOS SDK directly through EOSShared (`UKartOnlineSubsystem`) and uses the engine's `NetDriverEOS` / `SocketSubsystemEOS` for P2P. |
+| 11 | (Nov 13) The editor's Fab plugin starts its own EOS platform (Epic's IDs) in every editor session. | Not ours; harmless. Our platform only starts in standalone games with credentials. |
 
 ## Naming (player-facing)
 Gameplay follows the brief. Player-facing names are original: the game title is a placeholder until you pick one,
@@ -32,11 +34,12 @@ The internal module/repo name `SmashKarts` stays (renaming a UE module mid-proje
 | Class | Authority | Replicates | Client predicts |
 |---|---|---|---|
 | `AKartGameMode : AGameMode` | Server only | — | — |
-| `AKartGameState : AGameState` | Server writes | MatchState (engine), end timestamps (`MatchEndServerTime`, `CountdownEndServerTime`, `ResultsEndServerTime`), match length; reliable multicast for eliminations | Timer display from `GetServerWorldTimeSeconds()` |
+| `AKartGameState : AGameState` | Server writes | MatchState (engine), end timestamps (`MatchEndServerTime`, `CountdownEndServerTime`, `ResultsEndServerTime`), match length, online `RoomCode`; reliable multicast for eliminations | Timer display from `GetServerWorldTimeSeconds()` |
 | `AKartPlayerState : APlayerState` | Server writes | Score (engine), Eliminations, Deaths, JoinOrder, ColorIndex, bIsHost, RespawnServerTime | — |
 | `AKartPlayerController` | Client sends `Server_*` RPCs (host actions, debug) | — | Local UI input (runtime mapping context: Tab/Enter/Backspace/Esc) |
 | `AKartHUD` + C++ UMG widgets | Local only | — | Polls replicated state each frame |
 | `AKartBotController : AAIController` (practice bots) | Server only | Nothing itself; its kart + PlayerState replicate like a player's | — (server-driven pawn) |
+| `UKartOnlineSubsystem` (phase 7, game instance subsystem) | Local: each machine logs itself in to EOS; the host advertises the room | Nothing itself; the room code reaches clients via `AKartGameState::RoomCode` | — |
 | `UKartStatusComponent` | Server sets flags/timers | Flag bitmask + end times | Movement reads flags on both sides (phase 2) |
 | `AKartCharacter` (additions) | Server: elimination, damage gating | `bEliminated` (RepNotify), death FX multicast | Input locked locally from replicated state |
 
@@ -53,7 +56,7 @@ Respawn: the dead kart stays possessed and hidden (camera stays put), then is de
 | 4 | Menus + direct IP | `Game/KartGameInstance` (net errors, name save), `UI/KartMainMenuWidget`, lobby overlay, pause, settings, colours, name tags, damage numbers, `L_MainMenu`, `Docs/HOSTING.md`, renderer settings | ✅ CP3 passed Nov 12 (packaged, 2 windows + 2-PC LAN) |
 | 5 | Tier 3 weapons | `BuffWeapon`, `KartStatusFXComponent`, trap box trigger + stay + status (Spike Strip), Snowball freeze hit, Tesla zap, Mace Orbit; `sk_phase5_setup.py` | ✅ Nov 12 (self-tested: `SK.AutoTest tier3`) |
 | 6 | Arena | `sk_build_arena.py` → `L_Arena_01` blockout, spawns, loot spots, KillZ, lighting; `SK.AutoTest arena` | ✅ CP4 passed Nov 12 (internet playtest; dressing waits for art packs) |
-| 7 | EOS | OSS EOS + `NetDriverEOS`, Device ID login, create/find/join by room code, secrets in gitignored `Config/Windows/WindowsEngine.ini` | ⏳ → 🛑 CP5 |
+| 7 | EOS | `Game/KartOnlineSubsystem` (EOS SDK via EOSShared: Device ID login, room-code sessions; `NetDriverEOS` P2P swapped in after login), menu/lobby/scoreboard room codes, secrets in gitignored `Config/Windows/WindowsEngine.ini` | 🔨 code done Nov 13 (self-tested without credentials) → needs your EOS portal values (`Docs/EOS_SETUP.md`) → 🛑 CP5 |
 | 8 | Extras + polish | Nuke, Fake Loot Box, Invincibility, audio, firing feel, balance (reverse cap done in phase 2) | 🔨 extras, loot box look and practice bots done Nov 12 (self-tested); audio and arena art wait for the packs |
 | 9 | Ship | packaging, log cleanup, `HOW_TO_PLAY.md`, zip | ⏳ → 🛑 Final |
 
@@ -71,7 +74,7 @@ Target dates: 0–3 by Nov 17 · 4–6 by Nov 22 · 7 by Nov 24 (EOS go/no-go) �
 ## Risks
 | Risk | Mitigation |
 |---|---|
-| EOS setup/config churn in 5.8 | Direct IP + virtual LAN is fully playable first; EOS behind a toggle; hard stop Nov 24. |
+| EOS setup/config churn in 5.8 | Direct IP + virtual LAN is fully playable first; EOS is off without credentials and IP keeps working with it on; hard stop Nov 24. |
 | Editor must be closed for CLI builds | Batch code work; one build per step. Live Coding not used for structural changes. |
 | Headless Python level editing quirks | Scripts are idempotent and log every change; fallback is a manual checklist. |
 | Knockback vs CMC prediction | Use the CMC's own launch path (`LaunchCharacter` → `PendingLaunchVelocity`, applied in the predicted move) and test at 60 ms. |

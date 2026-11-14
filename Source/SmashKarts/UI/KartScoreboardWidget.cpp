@@ -160,7 +160,9 @@ void UKartScoreboardWidget::Rebuild()
 	}
 	else
 	{
-		SetTextIfChanged(TitleText, GS->IsLobby() ? TEXT("PLAYERS") : TEXT("SCOREBOARD"));
+		const FString Title = GS->IsLobby() ? TEXT("PLAYERS") : TEXT("SCOREBOARD");
+		// Online games: the room code, so anyone can invite a friend mid-match
+		SetTextIfChanged(TitleText, GS->RoomCode.IsEmpty() ? Title : FString::Printf(TEXT("%s   (room %s)"), *Title, *GS->RoomCode));
 	}
 
 	Rows->ClearChildren();

@@ -32,6 +32,7 @@ void AKartGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 	DOREPLIFETIME(AKartGameState, MatchEndServerTime);
 	DOREPLIFETIME(AKartGameState, ResultsEndServerTime);
 	DOREPLIFETIME(AKartGameState, MatchDurationSeconds);
+	DOREPLIFETIME(AKartGameState, RoomCode);
 }
 
 void AKartGameState::OnRep_MatchState()

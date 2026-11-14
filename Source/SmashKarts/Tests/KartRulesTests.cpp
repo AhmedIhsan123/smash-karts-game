@@ -180,4 +180,49 @@ bool FKartAuraZapCountTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKartRoomCodeTest, "SmashKarts.Rules.RoomCode", KartTestFlags)
+bool FKartRoomCodeTest::RunTest(const FString& Parameters)
+{
+	using namespace KartRules;
+	const FString& Alphabet = RoomCodeAlphabet();
+	TestEqual(TEXT("31 characters"), Alphabet.Len(), 31);
+	int32 Unused = INDEX_NONE;
+	for (const TCHAR LookAlike : FString(TEXT("0O1IL")))
+	{
+		TestFalse(*FString::Printf(TEXT("no look-alike %c"), LookAlike), Alphabet.FindChar(LookAlike, Unused));
+	}
+
+	TestEqual(TEXT("values pick letters"), MakeRoomCode({ 0, 1, 2, 30, 31 }), FString(TEXT("ABC9A")));
+	TestEqual(TEXT("negative values stay in the alphabet"), MakeRoomCode({ -1 }).Len(), 1);
+	TestTrue(TEXT("negative values make valid characters"), Alphabet.FindChar(MakeRoomCode({ -1, MIN_int32 })[1], Unused));
+
+	// Every generated code is recognised as a code
+	FRandomStream Stream(1234);
+	for (int32 i = 0; i < 500; ++i)
+	{
+		TArray<int32> Values;
+		for (int32 c = 0; c < RoomCodeLength; ++c)
+		{
+			Values.Add(Stream.RandHelper(MAX_int32));
+		}
+		const FString Code = MakeRoomCode(Values);
+		if (!IsRoomCode(Code))
+		{
+			AddError(FString::Printf(TEXT("generated code %s not recognised"), *Code));
+			break;
+		}
+	}
+
+	TestEqual(TEXT("normalize: case, spaces, dashes"), NormalizeRoomCode(TEXT(" ab c-de ")), FString(TEXT("ABCDE")));
+	TestTrue(TEXT("typed lower case with a dash"), IsRoomCode(TEXT("kx7-qp")));
+	TestTrue(TEXT("typed lower case"), IsRoomCode(TEXT("kx7qp")));
+	TestFalse(TEXT("IP address is not a code"), IsRoomCode(TEXT("192.168.1.20")));
+	TestFalse(TEXT("loopback is not a code"), IsRoomCode(TEXT("127.0.0.1")));
+	TestFalse(TEXT("too short"), IsRoomCode(TEXT("ABCD")));
+	TestFalse(TEXT("too long"), IsRoomCode(TEXT("ABCDEF")));
+	TestFalse(TEXT("look-alike O"), IsRoomCode(TEXT("ABCDO")));
+	TestFalse(TEXT("empty"), IsRoomCode(FString()));
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

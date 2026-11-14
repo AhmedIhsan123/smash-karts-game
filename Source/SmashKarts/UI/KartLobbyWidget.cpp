@@ -1,5 +1,6 @@
 #include "UI/KartLobbyWidget.h"
 #include "Game/KartGameInstance.h"
+#include "Game/KartOnlineSubsystem.h"
 #include "Game/KartGameState.h"
 #include "Game/KartPlayerController.h"
 #include "Game/KartPlayerState.h"
@@ -26,6 +27,11 @@ void UKartLobbyWidget::BuildTree()
 
 	Column->AddChildToVerticalBox(MakeText(TEXT("LOBBY"), 30, FLinearColor(1.f, 0.82f, 0.2f)));
 	Column->AddChildToVerticalBox(MakeText(TEXT("Drive around while everyone joins"), 16, FLinearColor(0.8f, 0.8f, 0.8f), false));
+
+	// Online games: the code friends type next to Join Game (everyone sees it, so anyone can invite)
+	RoomCodeText = MakeText(TEXT(""), 34, FLinearColor(1.f, 0.82f, 0.2f));
+	RoomCodeText->SetVisibility(ESlateVisibility::Collapsed);
+	Column->AddChildToVerticalBox(RoomCodeText)->SetPadding(FMargin(0.f, 10.f, 0.f, 0.f));
 
 	PlayerList = WidgetTree->ConstructWidget<UVerticalBox>();
 	Column->AddChildToVerticalBox(PlayerList)->SetPadding(FMargin(0.f, 12.f));
@@ -147,13 +153,34 @@ void UKartLobbyWidget::Rebuild()
 	SetTextIfChanged(LengthText, FString::Printf(TEXT("Match length: %s"), *KartRules::FormatMatchTime(static_cast<float>(GS->MatchDurationSeconds))));
 	SetTextIfChanged(BotsText, FString::Printf(TEXT("Practice bots: %d"), CountBots()));
 
-	if (bHost)
+	RoomCodeText->SetVisibility(GS->RoomCode.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	SetTextIfChanged(RoomCodeText, FString::Printf(TEXT("ROOM CODE  %s"), *GS->RoomCode));
+
+	const UKartGameInstance* GI = GetGameInstance<UKartGameInstance>();
+	if (bHost && GI && GI->IsHostingOnline())
+	{
+		const UKartOnlineSubsystem* Online = GI->GetOnline();
+		FString Share;
+		if (!GS->RoomCode.IsEmpty())
+		{
+			Share = TEXT("Online game: friends click Join Game with this room code (no IP or VPN needed).");
+		}
+		else if (Online && !Online->GetRoomError().IsEmpty())
+		{
+			Share = Online->GetRoomError() + TEXT("\nLeave and host again, or use Host LAN / IP Game.");
+		}
+		else
+		{
+			Share = TEXT("Creating your online room...");
+		}
+		SetTextIfChanged(ShareText, Share);
+	}
+	else if (bHost)
 	{
 		if (CachedAddresses.IsEmpty())
 		{
 			CachedAddresses = GetLocalAddresses();
 		}
-		const UKartGameInstance* GI = GetGameInstance<UKartGameInstance>();
 		const int32 Port = GI ? GI->GamePort : 7777;
 		SetTextIfChanged(ShareText, FString::Printf(TEXT("Friends join with one of these addresses (port %d):\n%s\nOver the internet without a VPN: your public IP + port forwarding (HOSTING.md)."),
 			Port, CachedAddresses.IsEmpty() ? TEXT("(no network adapter found)") : *CachedAddresses));

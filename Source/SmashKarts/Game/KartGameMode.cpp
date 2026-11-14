@@ -1,4 +1,5 @@
 #include "Game/KartGameMode.h"
+#include "Game/KartGameInstance.h"
 #include "Game/KartGameState.h"
 #include "Game/KartPlayerState.h"
 #include "Game/KartPlayerController.h"
@@ -71,6 +72,19 @@ void AKartGameMode::InitGame(const FString& MapName, const FString& Options, FSt
 		GameSession->MaxPlayers = MaxKartPlayers;
 	}
 	UE_LOG(LogSmashKarts, Log, TEXT("[Game] InitGame %s | max players %d"), *MapName, GameSession ? GameSession->MaxPlayers : -1);
+}
+
+void AKartGameMode::InitGameState()
+{
+	Super::InitGameState();
+	// Online host: the room code may already be known (created while the map loaded); otherwise the game
+	// instance sets it when EOS confirms the room
+	AKartGameState* KartState = GetGameState<AKartGameState>();
+	const UKartGameInstance* GI = GetGameInstance<UKartGameInstance>();
+	if (KartState && GI)
+	{
+		KartState->RoomCode = GI->GetHostedRoomCode();
+	}
 }
 
 FString AKartGameMode::InitNewPlayer(APlayerController* NewPlayerController, const FUniqueNetIdRepl& UniqueId,

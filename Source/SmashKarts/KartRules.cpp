@@ -109,6 +109,57 @@ int32 KartRules::AuraZapCount(float Duration, float Interval)
 	return FMath::Max(1, FMath::FloorToInt(Duration / Interval + 1.0e-3f));
 }
 
+const FString& KartRules::RoomCodeAlphabet()
+{
+	static const FString Alphabet(TEXT("ABCDEFGHJKMNPQRSTUVWXYZ23456789"));
+	return Alphabet;
+}
+
+FString KartRules::MakeRoomCode(const TArray<int32>& RandomValues)
+{
+	const FString& Alphabet = RoomCodeAlphabet();
+	FString Code;
+	Code.Reserve(RandomValues.Num());
+	for (const int32 Value : RandomValues)
+	{
+		// Unsigned modulo so negative numbers map into the alphabet too
+		Code.AppendChar(Alphabet[static_cast<int32>(static_cast<uint32>(Value) % static_cast<uint32>(Alphabet.Len()))]);
+	}
+	return Code;
+}
+
+FString KartRules::NormalizeRoomCode(const FString& Typed)
+{
+	FString Out;
+	Out.Reserve(Typed.Len());
+	for (const TCHAR C : Typed)
+	{
+		if (!FChar::IsWhitespace(C) && C != TEXT('-'))
+		{
+			Out.AppendChar(FChar::ToUpper(C));
+		}
+	}
+	return Out;
+}
+
+bool KartRules::IsRoomCode(const FString& Typed)
+{
+	const FString Code = NormalizeRoomCode(Typed);
+	if (Code.Len() != RoomCodeLength)
+	{
+		return false;
+	}
+	int32 Unused = INDEX_NONE;
+	for (const TCHAR C : Code)
+	{
+		if (!RoomCodeAlphabet().FindChar(C, Unused))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 FString KartRules::SanitizePlayerName(const FString& InName, int32 MaxLength)
 {
 	FString Out;

@@ -1,6 +1,8 @@
 #include "UI/KartMainMenuWidget.h"
 #include "UI/KartSettingsWidget.h"
 #include "Game/KartGameInstance.h"
+#include "Game/KartOnlineSubsystem.h"
+#include "KartRules.h"
 #include "SmashKarts.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
@@ -10,6 +12,7 @@
 #include "Components/EditableTextBox.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
@@ -44,14 +47,23 @@ void UKartMainMenuWidget::BuildTree()
 	NameRow->AddChildToHorizontalBox(Sized(NameField, 320.f, 40.f))->SetVerticalAlignment(VAlign_Center);
 	Column->AddChildToVerticalBox(NameRow)->SetPadding(FMargin(0.f, 28.f, 0.f, 12.f));
 
-	// Host
-	UButton* HostButton = MakeButton(TEXT("Host Game"), 26, FLinearColor(0.1f, 0.6f, 0.25f), 480.f);
-	HostButton->OnClicked.AddDynamic(this, &UKartMainMenuWidget::OnHostClicked);
-	Column->AddChildToVerticalBox(HostButton)->SetPadding(FMargin(0.f, 8.f));
+	// Host online (room code): only shown when online play is set up in this build
+	HostOnlineButton = MakeButton(TEXT("Host Online Game"), 26, FLinearColor(0.1f, 0.6f, 0.25f), 480.f);
+	HostOnlineButton->OnClicked.AddDynamic(this, &UKartMainMenuWidget::OnHostOnlineClicked);
+	Column->AddChildToVerticalBox(HostOnlineButton)->SetPadding(FMargin(0.f, 8.f, 0.f, 4.f));
 
-	// Join
+	// Host by IP: the main button without online play, a smaller second choice with it
+	HostButton = MakeButton(TEXT("Host Game"), 26, FLinearColor(0.1f, 0.6f, 0.25f), 480.f);
+	HostButton->OnClicked.AddDynamic(this, &UKartMainMenuWidget::OnHostClicked);
+	if (const USizeBox* LabelBox = Cast<USizeBox>(HostButton->GetContent()))
+	{
+		HostButtonLabel = Cast<UTextBlock>(LabelBox->GetContent());
+	}
+	Column->AddChildToVerticalBox(HostButton)->SetPadding(FMargin(0.f, 4.f, 0.f, 8.f));
+
+	// Join (room code or IP)
 	UHorizontalBox* JoinRow = WidgetTree->ConstructWidget<UHorizontalBox>();
-	AddressField = MakeTextField(GI ? GI->GetLastJoinAddress() : FString(TEXT("127.0.0.1")), TEXT("host IP, e.g. 192.168.1.20"));
+	AddressField = MakeTextField(GI ? GI->GetLastJoinAddress() : FString(TEXT("127.0.0.1")), TEXT("room code or host IP"));
 	JoinRow->AddChildToHorizontalBox(Sized(AddressField, 320.f, 44.f))->SetVerticalAlignment(VAlign_Center);
 	UButton* JoinButton = MakeButton(TEXT("Join Game"), 24, FLinearColor(0.15f, 0.45f, 0.95f), 150.f);
 	JoinButton->OnClicked.AddDynamic(this, &UKartMainMenuWidget::OnJoinClicked);
@@ -72,9 +84,10 @@ void UKartMainMenuWidget::BuildTree()
 	MessageText->SetAutoWrapText(true);
 	Column->AddChildToVerticalBox(Sized(MessageText, 480.f, 0.f))->SetPadding(FMargin(0.f, 16.f));
 
-	UTextBlock* Footer = MakeText(FString::Printf(TEXT("Direct IP on UDP port %d. Playing over the internet: see HOSTING.md."), GI ? GI->GamePort : 7777),
-		16, FLinearColor(0.6f, 0.65f, 0.75f), false);
-	AddToCanvas(Root, Footer, FAnchors(0.5f, 1.f), FVector2D(0.5f, 1.f), FVector2D(0.f, -16.f));
+	// Online status (EOS) or the direct-IP hint
+	OnlineText = MakeText(TEXT(""), 16, FLinearColor(0.6f, 0.65f, 0.75f), false);
+	AddToCanvas(Root, OnlineText, FAnchors(0.5f, 1.f), FVector2D(0.5f, 1.f), FVector2D(0.f, -16.f));
+	RefreshOnline();
 
 	// Settings overlay
 	SettingsPanel = CreateWidget<UKartSettingsWidget>(GetOwningPlayer(), UKartSettingsWidget::StaticClass());
@@ -91,12 +104,63 @@ void UKartMainMenuWidget::NativeConstruct()
 	Super::NativeConstruct();
 	if (UKartGameInstance* GI = GetGameInstance<UKartGameInstance>())
 	{
-		const FString Message = GI->ConsumeMenuMessage();
+		bool bError = true;
+		const FString Message = GI->ConsumeMenuMessage(&bError);
 		if (!Message.IsEmpty())
 		{
-			ShowMessage(Message, true);
+			ShowMessage(Message, bError);
 		}
 	}
+}
+
+void UKartMainMenuWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	// Room searches and online login finish later: show their messages as they arrive
+	if (UKartGameInstance* GI = GetGameInstance<UKartGameInstance>())
+	{
+		bool bError = true;
+		const FString Message = GI->ConsumeMenuMessage(&bError);
+		if (!Message.IsEmpty())
+		{
+			ShowMessage(Message, bError);
+		}
+	}
+	RefreshAccumulator += InDeltaTime;
+	if (RefreshAccumulator >= 0.5f)
+	{
+		RefreshAccumulator = 0.f;
+		RefreshOnline();
+	}
+}
+
+void UKartMainMenuWidget::RefreshOnline()
+{
+	const UKartGameInstance* GI = GetGameInstance<UKartGameInstance>();
+	const UKartOnlineSubsystem* Online = GI ? GI->GetOnline() : nullptr;
+	const bool bOnline = Online && Online->IsAvailable();
+
+	SetTextIfChanged(OnlineText, Online ? Online->GetStatusText()
+		: FString::Printf(TEXT("Direct IP on UDP port %d. Playing over the internet: see HOSTING.md."), GI ? GI->GamePort : 7777));
+	SetTextColor(OnlineText, (Online && Online->IsReady()) ? FLinearColor(0.55f, 0.95f, 0.6f)
+		: (Online && Online->GetState() == EKartOnlineState::Failed) ? FLinearColor(1.f, 0.7f, 0.4f) : FLinearColor(0.6f, 0.65f, 0.75f));
+
+	const int8 Mode = bOnline ? 1 : 0;
+	if (Mode == ShownOnlineMode)
+	{
+		return;
+	}
+	ShownOnlineMode = Mode;
+	HostOnlineButton->SetVisibility(bOnline ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	SetTextIfChanged(HostButtonLabel, bOnline ? TEXT("Host LAN / IP Game") : TEXT("Host Game"));
+	if (HostButtonLabel)
+	{
+		FSlateFontInfo Font = HostButtonLabel->GetFont();
+		Font.Size = bOnline ? 20 : 26;
+		HostButtonLabel->SetFont(Font);
+	}
+	HostButton->SetBackgroundColor(bOnline ? FLinearColor(0.25f, 0.3f, 0.45f) : FLinearColor(0.1f, 0.6f, 0.25f));
 }
 
 void UKartMainMenuWidget::ShowMessage(const FString& Message, bool bError)
@@ -114,6 +178,19 @@ void UKartMainMenuWidget::SaveName()
 	}
 }
 
+void UKartMainMenuWidget::OnHostOnlineClicked()
+{
+	SaveName();
+	if (UKartGameInstance* GI = GetGameInstance<UKartGameInstance>())
+	{
+		if (GI->HostOnlineGame())
+		{
+			ShowMessage(TEXT("Starting your online game..."), false);
+		}
+		// otherwise the reason arrives as a menu message on the next tick
+	}
+}
+
 void UKartMainMenuWidget::OnHostClicked()
 {
 	SaveName();
@@ -128,15 +205,12 @@ void UKartMainMenuWidget::OnJoinClicked()
 {
 	SaveName();
 	UKartGameInstance* GI = GetGameInstance<UKartGameInstance>();
-	const FString Address = AddressField->GetText().ToString();
-	if (GI && GI->JoinGame(Address))
+	const FString Address = AddressField->GetText().ToString().TrimStartAndEnd();
+	if (GI && GI->JoinGame(Address) && !KartRules::IsRoomCode(Address))
 	{
 		ShowMessage(FString::Printf(TEXT("Connecting to %s..."), *Address), false);
 	}
-	else if (GI)
-	{
-		ShowMessage(GI->ConsumeMenuMessage(), true);
-	}
+	// Room codes and errors: progress / the reason arrive as menu messages on the next tick
 }
 
 void UKartMainMenuWidget::OnSettingsClicked()

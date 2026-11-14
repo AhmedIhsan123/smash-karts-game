@@ -9,9 +9,10 @@ class UTextBlock;
 class UVerticalBox;
 
 /**
- * Lobby overlay (match state WaitingToStart): player list with colours and host badge, Start Match,
- * match-length and practice-bot buttons for the host, and the addresses friends should join. Local only; host actions go
- * through AKartPlayerController Server RPCs (checked by the game mode).
+ * Lobby overlay (match state WaitingToStart): player list with colours and host badge, the online room code
+ * (everyone sees it), Start Match, match-length and practice-bot buttons for the host, and for direct-IP games the
+ * addresses friends should join. Local only; host actions go through AKartPlayerController Server RPCs (checked by
+ * the game mode).
  */
 UCLASS()
 class SMASHKARTS_API UKartLobbyWidget : public UKartWidgetBase
@@ -39,6 +40,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> LengthText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> BotsText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ShareText;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> RoomCodeText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WaitingText;
 
 	float RefreshAccumulator = 1.f;

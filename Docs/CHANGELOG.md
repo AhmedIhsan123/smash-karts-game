@@ -2,6 +2,21 @@
 
 ## Unreleased (`finish-game`)
 
+### Phase 7 — Nov 13 (online play with room codes, through EOS)
+- **Host Online Game**: friends join with a 5-character **room code** instead of an IP address. No port forwarding, VPN, firewall rule or Epic account.
+  New `UKartOnlineSubsystem` (game instance subsystem): logs in to Epic Online Services at startup with an EOS Connect **Device ID** (created once per Windows user, no login window); the host advertises an EOS session carrying the room code; joiners search for it and connect **peer-to-peer** through the engine's NetDriverEOS (NAT traversal, relays when needed).
+  Codes use capitals and digits without the look-alikes 0 O 1 I L; a new code every time you host.
+- Main menu: **Host Online Game** + **Host LAN / IP Game**; the join box takes a room code or an IP address; a status line at the bottom (connecting / ready / unavailable with a retry countdown / off). Clicking Host Online or joining with a code while it's still connecting waits and carries on by itself. Without online play the menu looks like before (one **Host Game** button).
+- Lobby: **ROOM CODE  XXXXX** for everyone (new replicated `AKartGameState::RoomCode`, set by the host), "Creating your online room..." or the error for the host. The Tab scoreboard shows the room code too, so anyone can invite a friend mid-match.
+- Messages: no game with that code, different game version (checked before connecting), can't reach the host's online game, online play unavailable. Login retries after 10 s, 30 s, then every 60 s; the login is refreshed before it expires.
+- **Direct IP keeps working** with or without online play: IP hosts listen with `?bUseIPSockets`, and IP addresses pass through NetDriverEOS as plain UDP. NetDriverEOS only replaces IpNetDriver after a successful EOS login.
+- Online play is **off** in the editor (PIE), with `-NoEOS`, and when `Config/Windows/WindowsEngine.ini` (gitignored) has no credentials. New format: `[EOSSDK.Platform.KartArena]` with the five portal values (`WindowsEngine.ini.example`, `Docs/EOS_SETUP.md`). Not using the OnlineSubsystemEOS plugin: on Windows it can't log in with a Device ID, so the subsystem talks to the EOS SDK through EOSShared.
+- Version 0.6.0 (players on 0.5 get the version-mismatch message; rooms also refuse a different version before connecting).
+- Plugins: EOSShared, SocketSubsystemEOS (Win64). `[EOSSDK] ProductName=KartArena` (the name the SDK reports to Epic; the editor's Fab plugin already started an EOS platform under the module name).
+- Dev builds: `SK.HostOnline`, `SK.Join <code | ip>`, `SK.Online` (status), `SK.JoinLastRoom` + `-EOSNewDevice` (a second copy on the same PC gets its own EOS identity and joins the room this PC hosted last, so room codes can be tested on one machine).
+- Docs: HOSTING.md (room codes first), HOW_TO_PLAY.md, EOS_SETUP.md (new file format, how to check it works).
+- Tests: `SmashKarts.Rules.RoomCode` (all 10 rules tests pass). Without credentials: full match loop (`SK.AutoTest 2 quit`) passes, host and join by IP from the menu work with player names, Host Online / a room code explain that online play isn't set up. The online path itself needs the portal credentials (checkpoint 5).
+
 ### Practice bots — Nov 12
 - **`AKartBotController`** (server-only AI): unarmed it drives to the nearest loot box it can reach; armed it hunts the nearest kart and uses the weapon properly: aims projectiles (wider cone for the Seeker), sets the throw charge from the distance, drops traps when chased, starts the Machine Gun, Tesla Coil, Mace Orbit and Invincibility up close, and never sits on a weapon for more than 8 s. It obeys countdown, freeze and results like a player and idles in the lobby.
 - Steering: looks in 9 directions with a kart-sized sweep (open space first, then toward the target), slides along walls to the gaps, 3-point-turns out of corners, backs up when stuck and gives up on a target it keeps getting stuck on. In a 45 s test on `L_Arena_01` six bots drove 180–230 m each, picked up 20 weapons, fired 26 times and got stuck once.

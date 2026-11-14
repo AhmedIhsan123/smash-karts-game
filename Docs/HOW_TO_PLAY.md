@@ -7,8 +7,10 @@ score the most smashes before the timer runs out.
 1. Unzip the folder anywhere (not inside Program Files) and run **SmashKarts.exe**.
    *Play_Windowed.bat* starts it in a window instead.
 2. Type your name.
-3. **Host Game** to run the match on your PC, or type the host's address and **Join Game**.
-   How to connect over the internet: see **HOSTING.md**.
+3. **Host Online Game** runs the match on your PC and gives you a 5-letter **room code** (shown in the lobby).
+   Friends type the code in the box next to **Join Game**. No IP addresses, VPN or router setup needed.
+   **Host LAN / IP Game** is the old way: friends type your IP address instead (same house, VPN, port forwarding).
+   If the bottom of the menu says online play is off or unavailable, only the IP way works: see **HOSTING.md**.
 4. In the lobby, drive around while everyone joins. The host picks the match length and clicks **Start Match**.
    Playing alone or with a few friends? The host can add practice bots with **+ Bot** (up to 8 karts in total;
    a friend who joins takes a bot's place).
@@ -55,6 +57,8 @@ score the most smashes before the timer runs out.
 The weapon panel (bottom right) shows uses left, or the time left for Machine Gun, Mace Orbit, Tesla Coil and Invincibility.
 
 ## Problems?
-- **Can't connect**: check the address, make sure the host is in the lobby, see HOSTING.md (firewall / VPN).
+- **"No game found with code ..."**: check the code with the host (it's at the top of their lobby panel and on the Tab scoreboard).
+- **Can't connect with a code**: the host may have left; they host again and get a new code. Still stuck: use Host LAN / IP Game and HOSTING.md.
+- **Can't connect by IP**: check the address, make sure the host is in the lobby, see HOSTING.md (firewall / VPN).
 - **"Your game version doesn't match"**: everyone needs the same zip.
 - **Low frame rate**: Esc → Settings → Quality: Low or Medium, and a smaller resolution.

@@ -73,6 +73,24 @@ namespace KartRules
 	 * (Tesla Coil 5 s / 0.5 s = 10). Tolerant of float error (0.7f / 0.1f gives 7, not 6). 0 if Interval <= 0.
 	 */
 	SMASHKARTS_API int32 AuraZapCount(float Duration, float Interval);
+
+	// ---------- Online room codes (UKartOnlineSubsystem) ----------
+
+	/** Room codes are this many characters. */
+	constexpr int32 RoomCodeLength = 5;
+
+	/** Characters a room code can use: capitals and digits without the look-alikes 0 O 1 I L. */
+	SMASHKARTS_API const FString& RoomCodeAlphabet();
+
+	/** A room code from random numbers (one per character; any int, negative too). Fewer numbers → shorter code. */
+	SMASHKARTS_API FString MakeRoomCode(const TArray<int32>& RandomValues);
+
+	/** What a player typed → code form: upper case, spaces and dashes removed ("ab c-de" → "ABCDE"). */
+	SMASHKARTS_API FString NormalizeRoomCode(const FString& Typed);
+
+	/** True if the typed text is a room code (after NormalizeRoomCode): RoomCodeLength characters from the alphabet.
+	 *  Anything else (an IP address, a host name) is joined as an address. */
+	SMASHKARTS_API bool IsRoomCode(const FString& Typed);
 }
 
 namespace KartTime

@@ -1,4 +1,6 @@
 #include "Game/KartGameInstance.h"
+#include "Game/KartGameState.h"
+#include "Game/KartOnlineSubsystem.h"
 #include "Game/KartSaveGame.h"
 #include "KartRules.h"
 #include "SmashKarts.h"
@@ -27,6 +29,10 @@ void UKartGameInstance::Init()
 		NetworkFailureHandle = GEngine->OnNetworkFailure().AddUObject(this, &UKartGameInstance::HandleNetworkFailure);
 		TravelFailureHandle = GEngine->OnTravelFailure().AddUObject(this, &UKartGameInstance::HandleTravelFailure);
 	}
+	if (UKartOnlineSubsystem* Online = GetOnline())
+	{
+		OnlineStateHandle = Online->OnStateChanged.AddUObject(this, &UKartGameInstance::HandleOnlineStateChanged);
+	}
 }
 
 void UKartGameInstance::Shutdown()
@@ -35,6 +41,10 @@ void UKartGameInstance::Shutdown()
 	{
 		GEngine->OnNetworkFailure().Remove(NetworkFailureHandle);
 		GEngine->OnTravelFailure().Remove(TravelFailureHandle);
+	}
+	if (UKartOnlineSubsystem* Online = GetOnline())
+	{
+		Online->OnStateChanged.Remove(OnlineStateHandle);
 	}
 	Super::Shutdown();
 }
@@ -131,20 +141,154 @@ FString UKartGameInstance::BuildPlayerOptions() const
 	return Name.IsEmpty() ? FString() : FString::Printf(TEXT("?SKName=%s"), *Name.Replace(TEXT(" "), TEXT("%20")));
 }
 
+UKartOnlineSubsystem* UKartGameInstance::GetOnline() const
+{
+	return GetSubsystem<UKartOnlineSubsystem>();
+}
+
+FString UKartGameInstance::GetHostedRoomCode() const
+{
+	const UKartOnlineSubsystem* Online = GetOnline();
+	return (bHostingOnline && Online) ? Online->GetRoomCode() : FString();
+}
+
+void UKartGameInstance::StopHostingOnline()
+{
+	if (bHostingOnline)
+	{
+		bHostingOnline = false;
+		if (UKartOnlineSubsystem* Online = GetOnline())
+		{
+			Online->DestroyRoom();
+		}
+	}
+}
+
+FString UKartGameInstance::OnlineNotReadyMessage(bool bHosting) const
+{
+	UKartOnlineSubsystem* Online = GetOnline();
+	const EKartOnlineState State = Online ? Online->GetState() : EKartOnlineState::Off;
+	switch (State)
+	{
+	case EKartOnlineState::Ready:
+		return FString();
+	case EKartOnlineState::Connecting:
+		return TEXT("Still connecting to online play. Try again in a few seconds.");
+	case EKartOnlineState::Failed:
+		return TEXT("Online play is unavailable right now (see the line at the bottom). Direct IP still works.");
+	case EKartOnlineState::Off:
+	default:
+		return bHosting
+			? FString(TEXT("Online play isn't set up in this build. Use Host Game and share your IP (HOSTING.md)."))
+			: FString(TEXT("Room codes need online play, which isn't set up in this build. Join with the host's IP address instead (HOSTING.md)."));
+	}
+}
+
+bool UKartGameInstance::QueueUntilOnline(EKartPendingOnline Action, const FString& Code)
+{
+	UKartOnlineSubsystem* Online = GetOnline();
+	if (!Online)
+	{
+		return false;
+	}
+	if (Online->GetState() == EKartOnlineState::Failed)
+	{
+		Online->Retry(); // a click is a good moment to try again
+	}
+	if (Online->GetState() != EKartOnlineState::Connecting)
+	{
+		return false;
+	}
+	PendingOnline = Action;
+	PendingRoomCode = Code;
+	UE_LOG(LogSmashKarts, Log, TEXT("[Menu] Waiting for online play to %s"), Action == EKartPendingOnline::Host ? TEXT("host") : *FString::Printf(TEXT("join %s"), *Code));
+	SetMenuMessage(Action == EKartPendingOnline::Host
+		? FString(TEXT("Connecting to online play... your game starts as soon as it's ready."))
+		: FString::Printf(TEXT("Connecting to online play... then joining room %s."), *Code), false);
+	return true;
+}
+
+void UKartGameInstance::HandleOnlineStateChanged()
+{
+	const UKartOnlineSubsystem* Online = GetOnline();
+	const EKartOnlineState State = Online ? Online->GetState() : EKartOnlineState::Off;
+	if (PendingOnline == EKartPendingOnline::None || State == EKartOnlineState::Connecting)
+	{
+		return;
+	}
+	const EKartPendingOnline Action = PendingOnline;
+	PendingOnline = EKartPendingOnline::None;
+	if (State != EKartOnlineState::Ready)
+	{
+		SetMenuMessage(TEXT("Couldn't connect to online play (see the line at the bottom). Direct IP still works."));
+		return;
+	}
+	if (Action == EKartPendingOnline::Host)
+	{
+		HostOnlineGame();
+	}
+	else
+	{
+		JoinRoom(PendingRoomCode);
+	}
+}
+
 void UKartGameInstance::HostGame()
 {
 	const FString Map = GetArenaMap();
-	UE_LOG(LogSmashKarts, Log, TEXT("[Menu] Hosting on %s (port %d)"), *Map, GamePort);
+	UE_LOG(LogSmashKarts, Log, TEXT("[Menu] Hosting on %s (direct IP, port %d)"), *Map, GamePort);
 	MenuMessage.Reset();
-	UGameplayStatics::OpenLevel(this, FName(*Map), true, FString(TEXT("listen")) + BuildPlayerOptions());
+	PendingOnline = EKartPendingOnline::None;
+	StopHostingOnline();
+	// bUseIPSockets: plain UDP even when EOS P2P is the game net driver (it's ignored otherwise)
+	UGameplayStatics::OpenLevel(this, FName(*Map), true, FString(TEXT("listen?bUseIPSockets")) + BuildPlayerOptions());
 }
 
-bool UKartGameInstance::JoinGame(const FString& Address)
+bool UKartGameInstance::HostOnlineGame()
 {
-	FString Target = Address.TrimStartAndEnd();
+	if (QueueUntilOnline(EKartPendingOnline::Host, FString()))
+	{
+		return true;
+	}
+	const FString NotReady = OnlineNotReadyMessage(true);
+	if (!NotReady.IsEmpty())
+	{
+		SetMenuMessage(NotReady);
+		return false;
+	}
+	const FString Map = GetArenaMap();
+	UE_LOG(LogSmashKarts, Log, TEXT("[Menu] Hosting online on %s"), *Map);
+	MenuMessage.Reset();
+	StopHostingOnline();
+	bHostingOnline = true;
+	// The room is advertised while the map loads; the lobby shows the code once EOS confirms it
+	GetOnline()->CreateRoom(GetPlayerName(), FKartRoomCreated::CreateUObject(this, &UKartGameInstance::HandleRoomCreated));
+	UGameplayStatics::OpenLevel(this, FName(*Map), true, FString(TEXT("listen")) + BuildPlayerOptions());
+	return true;
+}
+
+void UKartGameInstance::HandleRoomCreated(bool bSuccess, const FString& CodeOrError)
+{
+	if (!bHostingOnline)
+	{
+		return;
+	}
+	UE_LOG(LogSmashKarts, Log, TEXT("[Menu] Online room: %s"), *CodeOrError);
+	// Already in the arena: put the code on the game state for everyone's lobby (the game mode does it on map load otherwise)
+	UWorld* World = GetWorld();
+	AKartGameState* GS = World ? World->GetGameState<AKartGameState>() : nullptr;
+	if (GS && GS->HasAuthority())
+	{
+		GS->RoomCode = GetHostedRoomCode();
+	}
+}
+
+bool UKartGameInstance::JoinGame(const FString& CodeOrAddress)
+{
+	FString Target = CodeOrAddress.TrimStartAndEnd();
 	if (Target.IsEmpty())
 	{
-		SetMenuMessage(TEXT("Type the host's IP address first."));
+		SetMenuMessage(TEXT("Type a room code or the host's IP address first."));
 		return false;
 	}
 	if (Settings)
@@ -152,6 +296,11 @@ bool UKartGameInstance::JoinGame(const FString& Address)
 		Settings->LastJoinAddress = Target;
 		SaveSettings();
 	}
+	if (KartRules::IsRoomCode(Target))
+	{
+		return JoinRoom(KartRules::NormalizeRoomCode(Target));
+	}
+
 	if (!Target.Contains(TEXT(":")))
 	{
 		Target += FString::Printf(TEXT(":%d"), GamePort);
@@ -163,8 +312,46 @@ bool UKartGameInstance::JoinGame(const FString& Address)
 	}
 	UE_LOG(LogSmashKarts, Log, TEXT("[Menu] Joining %s"), *Target);
 	MenuMessage.Reset();
+	bJoiningOnline = false;
+	PendingOnline = EKartPendingOnline::None;
 	PC->ClientTravel(Target + BuildPlayerOptions(), TRAVEL_Absolute);
 	return true;
+}
+
+bool UKartGameInstance::JoinRoom(const FString& Code)
+{
+	if (QueueUntilOnline(EKartPendingOnline::Join, Code))
+	{
+		return true;
+	}
+	const FString NotReady = OnlineNotReadyMessage(false);
+	if (!NotReady.IsEmpty())
+	{
+		SetMenuMessage(NotReady);
+		return false;
+	}
+	UE_LOG(LogSmashKarts, Log, TEXT("[Menu] Looking for room %s"), *Code);
+	SetMenuMessage(FString::Printf(TEXT("Looking for room %s..."), *Code), false);
+	bJoiningOnline = true;
+	GetOnline()->FindRoom(Code, FKartRoomFound::CreateUObject(this, &UKartGameInstance::HandleRoomFound));
+	return true;
+}
+
+void UKartGameInstance::HandleRoomFound(bool bSuccess, const FString& UrlOrError, const FString& HostName)
+{
+	if (!bSuccess)
+	{
+		SetMenuMessage(UrlOrError);
+		return;
+	}
+	APlayerController* PC = GetFirstLocalPlayerController();
+	if (!PC)
+	{
+		return;
+	}
+	UE_LOG(LogSmashKarts, Log, TEXT("[Menu] Joining %s's room at %s"), *HostName, *UrlOrError);
+	SetMenuMessage(FString::Printf(TEXT("Joining %s's game..."), HostName.IsEmpty() ? TEXT("the host") : *HostName), false);
+	PC->ClientTravel(UrlOrError + BuildPlayerOptions(), TRAVEL_Absolute);
 }
 
 void UKartGameInstance::LeaveToMainMenu()
@@ -175,6 +362,8 @@ void UKartGameInstance::LeaveToMainMenu()
 		return;
 	}
 	UE_LOG(LogSmashKarts, Log, TEXT("[Menu] Leaving to the main menu (%s)"), World->GetNetMode() == NM_ListenServer ? TEXT("host") : TEXT("player"));
+	PendingOnline = EKartPendingOnline::None;
+	StopHostingOnline();
 	if (World->GetNetMode() == NM_Client)
 	{
 		if (APlayerController* PC = GetFirstLocalPlayerController())
@@ -191,15 +380,20 @@ void UKartGameInstance::LeaveToMainMenu()
 // Errors -> main menu message
 // =====================================================================
 
-void UKartGameInstance::SetMenuMessage(const FString& Message)
+void UKartGameInstance::SetMenuMessage(const FString& Message, bool bIsError)
 {
 	MenuMessage = Message;
+	bMenuMessageIsError = bIsError;
 	UE_LOG(LogSmashKarts, Log, TEXT("[Menu] Message: %s"), *Message);
 }
 
-FString UKartGameInstance::ConsumeMenuMessage()
+FString UKartGameInstance::ConsumeMenuMessage(bool* bOutIsError)
 {
 	FString Out = MenuMessage;
+	if (bOutIsError)
+	{
+		*bOutIsError = bMenuMessageIsError;
+	}
 	MenuMessage.Reset();
 	return Out;
 }
@@ -218,6 +412,9 @@ void UKartGameInstance::HandleNetworkFailure(UWorld* World, UNetDriver* NetDrive
 
 	// Still joining (never got in): it's a connect problem, not a disconnect
 	const bool bJoining = NetDriver && NetDriver->NetDriverName == NAME_PendingNetDriver;
+	const FString ConnectProblem = bJoiningOnline
+		? FString(TEXT("Couldn't connect to the host's online game. They may have left; ask them to host again for a new code."))
+		: FString(TEXT("Couldn't connect. Check the IP address and that the host is in a game (see HOSTING.md)."));
 
 	FString Message;
 	if (ErrorString.Contains(TEXT("full"), ESearchCase::IgnoreCase))
@@ -226,7 +423,7 @@ void UKartGameInstance::HandleNetworkFailure(UWorld* World, UNetDriver* NetDrive
 	}
 	else if (bJoining && FailureType != ENetworkFailure::OutdatedClient && FailureType != ENetworkFailure::OutdatedServer)
 	{
-		Message = TEXT("Couldn't connect. Check the IP address and that the host is in a game (see HOSTING.md).");
+		Message = ConnectProblem;
 	}
 	else
 	{
@@ -243,7 +440,7 @@ void UKartGameInstance::HandleNetworkFailure(UWorld* World, UNetDriver* NetDrive
 			Message = TEXT("Lost connection to the host (timed out).");
 			break;
 		case ENetworkFailure::PendingConnectionFailure:
-			Message = TEXT("Couldn't connect. Check the IP address and that the host's game is running (see HOSTING.md).");
+			Message = ConnectProblem;
 			break;
 		case ENetworkFailure::OutdatedClient:
 		case ENetworkFailure::OutdatedServer:
@@ -261,6 +458,7 @@ void UKartGameInstance::HandleTravelFailure(UWorld* World, ETravelFailure::Type 
 {
 	UE_LOG(LogSmashKarts, Log, TEXT("[Menu] Travel failure %s: %s"), ETravelFailure::ToString(FailureType), *ErrorString);
 	SetMenuMessage(FailureType == ETravelFailure::PendingNetGameCreateFailure
-		? FString(TEXT("Couldn't connect. Check the IP address and that the host's game is running."))
+		? FString(bJoiningOnline ? TEXT("Couldn't connect to the host's online game. Ask them to host again for a new code.")
+			: TEXT("Couldn't connect. Check the IP address and that the host's game is running."))
 		: FString::Printf(TEXT("Couldn't load the game: %s"), *ErrorString));
 }

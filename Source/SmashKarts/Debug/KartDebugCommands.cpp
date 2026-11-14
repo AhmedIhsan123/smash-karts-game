@@ -7,9 +7,12 @@
 
 #include "Game/KartPlayerController.h"
 #include "Game/KartGameInstance.h"
+#include "Game/KartOnlineSubsystem.h"
 #include "SmashKarts.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 
 namespace
 {
@@ -78,10 +81,41 @@ namespace
 			if (UKartGameInstance* GI = KartGI(World)) { GI->HostGame(); }
 		}));
 
-	static FAutoConsoleCommandWithWorldAndArgs GSKCmd_Join(TEXT("SK.Join"), TEXT("SK.Join <ip[:port]>  join a game (same as the Join button)"),
+	static FAutoConsoleCommandWithWorldAndArgs GSKCmd_HostOnline(TEXT("SK.HostOnline"), TEXT("SK.HostOnline  host an online game with a room code (same as the Host Online button)"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (UKartGameInstance* GI = KartGI(World)) { GI->HostOnlineGame(); }
+		}));
+
+	static FAutoConsoleCommandWithWorldAndArgs GSKCmd_Join(TEXT("SK.Join"), TEXT("SK.Join <room code | ip[:port]>  join a game (same as the Join button)"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			if (UKartGameInstance* GI = KartGI(World)) { GI->JoinGame(Args.Num() > 0 ? Args[0] : FString()); }
+		}));
+
+	static FAutoConsoleCommandWithWorldAndArgs GSKCmd_JoinLastRoom(TEXT("SK.JoinLastRoom"), TEXT("SK.JoinLastRoom  join the room this PC hosted last (Saved/LastRoomCode.txt). For testing two copies on one PC: start this copy with -EOSNewDevice"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			FString Code;
+			if (!FFileHelper::LoadFileToString(Code, *FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("LastRoomCode.txt"))))
+			{
+				UE_LOG(LogSmashKarts, Warning, TEXT("[Online] SK.JoinLastRoom: no Saved/LastRoomCode.txt yet (host an online game first)"));
+				return;
+			}
+			if (UKartGameInstance* GI = KartGI(World)) { GI->JoinGame(Code.TrimStartAndEnd()); }
+		}));
+
+	static FAutoConsoleCommandWithWorldAndArgs GSKCmd_Online(TEXT("SK.Online"), TEXT("SK.Online  log the online (EOS) status, this machine's EOS address and hosted room code"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			if (UKartGameInstance* GI = KartGI(World))
+			{
+				const UKartOnlineSubsystem* Online = GI->GetOnline();
+				UE_LOG(LogSmashKarts, Log, TEXT("[Online] Status: %s | address %s | hosting room %s"),
+					Online ? *Online->GetStatusText() : TEXT("no subsystem"),
+					Online && !Online->GetLocalAddress().IsEmpty() ? *Online->GetLocalAddress() : TEXT("-"),
+					GI->GetHostedRoomCode().IsEmpty() ? TEXT("-") : *GI->GetHostedRoomCode());
+			}
 		}));
 
 	static FAutoConsoleCommandWithWorldAndArgs GSKCmd_Leave(TEXT("SK.Leave"), TEXT("SK.Leave  back to the main menu"),
