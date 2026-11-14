@@ -101,6 +101,20 @@ void UKartGameInstance::SetMasterVolume(float Volume)
 	ApplyVolume();
 }
 
+bool UKartGameInstance::IsScreenShakeEnabled() const
+{
+	return !Settings || Settings->bScreenShake;
+}
+
+void UKartGameInstance::SetScreenShakeEnabled(bool bEnabled)
+{
+	if (Settings)
+	{
+		Settings->bScreenShake = bEnabled;
+		SaveSettings();
+	}
+}
+
 void UKartGameInstance::ApplyVolume() const
 {
 	if (GEngine)

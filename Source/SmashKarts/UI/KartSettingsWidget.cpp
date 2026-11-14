@@ -67,15 +67,19 @@ void UKartSettingsWidget::BuildTree()
 	UButton* Res = nullptr; UTextBlock* ResText = nullptr;
 	UButton* Win = nullptr; UTextBlock* WinText = nullptr;
 	UButton* Qual = nullptr; UTextBlock* QualText = nullptr;
+	UButton* Shake = nullptr; UTextBlock* ShakeLabel = nullptr;
 	AddRow(TEXT("Resolution"), MakeCycleButton(Res, ResText));
 	AddRow(TEXT("Window"), MakeCycleButton(Win, WinText));
 	AddRow(TEXT("Quality"), MakeCycleButton(Qual, QualText));
+	AddRow(TEXT("Screen shake"), MakeCycleButton(Shake, ShakeLabel));
 	ResolutionButton = Res; ResolutionText = ResText;
 	WindowModeButton = Win; WindowModeText = WinText;
 	QualityButton = Qual; QualityText = QualText;
+	ShakeButton = Shake; ShakeText = ShakeLabel;
 	ResolutionButton->OnClicked.AddDynamic(this, &UKartSettingsWidget::OnResolutionClicked);
 	WindowModeButton->OnClicked.AddDynamic(this, &UKartSettingsWidget::OnWindowModeClicked);
 	QualityButton->OnClicked.AddDynamic(this, &UKartSettingsWidget::OnQualityClicked);
+	ShakeButton->OnClicked.AddDynamic(this, &UKartSettingsWidget::OnShakeClicked);
 
 	UTextBlock* Controls = MakeText(
 		TEXT("CONTROLS\nW / S   drive / reverse\nA / D   steer\nSpace   fire (hold to charge throws, release to throw)\nTab   scoreboard\nEsc or P   menu"),
@@ -107,6 +111,16 @@ void UKartSettingsWidget::Refresh()
 		const int32 Quality = Settings->GetOverallScalabilityLevel();
 		SetTextIfChanged(QualityText, (Quality >= 0 && Quality < UE_ARRAY_COUNT(QualityNames)) ? QualityNames[Quality] : TEXT("Custom"));
 	}
+	SetTextIfChanged(ShakeText, (!GI || GI->IsScreenShakeEnabled()) ? TEXT("On") : TEXT("Off"));
+}
+
+void UKartSettingsWidget::OnShakeClicked()
+{
+	if (UKartGameInstance* GI = GetGameInstance<UKartGameInstance>())
+	{
+		GI->SetScreenShakeEnabled(!GI->IsScreenShakeEnabled());
+	}
+	Refresh();
 }
 
 void UKartSettingsWidget::OnVolumeChanged(float Value)

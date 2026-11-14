@@ -24,6 +24,9 @@ public:
 	void AddKillFeedLine(const FString& Text, const FLinearColor& Color);
 	void ShowBanner(const FString& Text, const FLinearColor& Color, float Seconds);
 
+	/** Red flash over the screen that fades in about a quarter second (your kart took Amount damage). */
+	void FlashDamage(float Amount);
+
 protected:
 	virtual void BuildTree() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -47,6 +50,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UBorder> WeaponIcon;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeaponIconText;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> KillFeedBox;
+	UPROPERTY(Transient) TObjectPtr<UBorder> DamageFlash;
+	float DamageFlashAlpha = 0.f;
 	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> KillFeedLines;
 
 	struct FFeedEntry

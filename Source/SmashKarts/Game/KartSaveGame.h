@@ -4,7 +4,7 @@
 #include "GameFramework/SaveGame.h"
 #include "KartSaveGame.generated.h"
 
-/** Local player preferences (name, volume). Display settings live in GameUserSettings. Never replicated. */
+/** Local player preferences (name, volume, screen shake). Display settings live in GameUserSettings. Never replicated. */
 UCLASS()
 class SMASHKARTS_API UKartSaveGame : public USaveGame
 {
@@ -19,4 +19,8 @@ public:
 
 	UPROPERTY()
 	FString LastJoinAddress;
+
+	/** Camera shakes on hits, explosions and firing (Settings > Screen shake). */
+	UPROPERTY()
+	bool bScreenShake = true;
 };

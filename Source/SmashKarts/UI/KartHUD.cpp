@@ -170,6 +170,15 @@ void AKartHUD::HandleElimination(APlayerState* Killer, APlayerState* Victim, TSu
 	}
 }
 
+void AKartHUD::FlashDamage(float Amount)
+{
+	EnsureWidgets();
+	if (HUDWidget)
+	{
+		HUDWidget->FlashDamage(Amount);
+	}
+}
+
 void AKartHUD::AddDamageNumber(const FVector& WorldLocation, float Amount, bool bKilled)
 {
 	const double Now = FPlatformTime::Seconds();

@@ -2,6 +2,13 @@
 
 ## Unreleased (`finish-game`)
 
+### Phase 8, part 2 — Nov 13 (game feel)
+- **Camera shakes** (`KartFeedback`, perlin-noise shakes set up in C++, no assets): a jolt when your kart is hit (scaled by the damage), a rumble from explosions near you (reach and strength follow the blast size: bullets barely, rockets ~15 m, Sticky Bomb and death explosions harder, the Nuke ~45 m, capped), and a small kick when you fire (charge throws kick on release). A new hit restarts a shake instead of stacking.
+- **Red screen flash** when your kart is hit (stronger for bigger hits, gone in about a quarter second, under the rest of the HUD).
+- Settings: **Screen shake On / Off** (saved with your name and volume).
+- Only the local player is affected; it runs from the existing health RepNotify and explosion multicasts, nothing new replicates.
+- Tests: `SmashKarts.Rules.ExplosionShake` (11 rules tests pass); `SK.AutoTest` loop (arena), weapons, extras and tier3 (L_Test) pass. The weapons / status / tier3 / extras scenarios place karts at L_Test coordinates, so run them on `L_Test` (on the arena the bullet lane runs into the SW platform).
+
 ### Phase 7 — Nov 13 (online play with room codes, through EOS)
 - **Host Online Game**: friends join with a 5-character **room code** instead of an IP address. No port forwarding, VPN, firewall rule or Epic account.
   New `UKartOnlineSubsystem` (game instance subsystem): logs in to Epic Online Services at startup with an EOS Connect **Device ID** (created once per Windows user, no login window); the host advertises an EOS session carrying the room code; joiners search for it and connect **peer-to-peer** through the engine's NetDriverEOS (NAT traversal, relays when needed).

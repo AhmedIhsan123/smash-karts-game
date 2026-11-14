@@ -11,7 +11,7 @@ class UTextBlock;
 DECLARE_MULTICAST_DELEGATE(FOnKartSettingsClosed);
 
 /**
- * Settings panel (main menu and pause menu): master volume, resolution, window mode, quality preset,
+ * Settings panel (main menu and pause menu): master volume, resolution, window mode, quality preset, screen shake,
  * controls list. Applies and saves immediately (GameUserSettings + the player's save file). Local only.
  */
 UCLASS()
@@ -33,6 +33,7 @@ private:
 	UFUNCTION() void OnResolutionClicked();
 	UFUNCTION() void OnWindowModeClicked();
 	UFUNCTION() void OnQualityClicked();
+	UFUNCTION() void OnShakeClicked();
 	UFUNCTION() void OnBackClicked();
 
 	void ApplyDisplaySettings();
@@ -45,5 +46,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WindowModeText;
 	UPROPERTY(Transient) TObjectPtr<UButton> QualityButton;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> QualityText;
+	UPROPERTY(Transient) TObjectPtr<UButton> ShakeButton;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ShakeText;
 	UPROPERTY(Transient) TObjectPtr<UButton> BackButton;
 };

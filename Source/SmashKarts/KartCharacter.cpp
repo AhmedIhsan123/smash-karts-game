@@ -8,6 +8,7 @@
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "KartDamageType.h"
+#include "KartFeedback.h"
 #include "KartHealthComponent.h"
 #include "KartRules.h"
 #include "Components/StaticMeshComponent.h"
@@ -566,6 +567,7 @@ void AKartCharacter::OnRep_Eliminated()
 void AKartCharacter::Multicast_EliminatedFX_Implementation(bool bBigExplosion)
 {
 	OnEliminatedFX(bBigExplosion);
+	KartFeedback::Explosion(this, GetActorLocation(), bBigExplosion ? 2.f : 1.f);
 }
 
 void AKartCharacter::OnEliminatedFX_Implementation(bool bBigExplosion)
@@ -586,7 +588,12 @@ void AKartCharacter::Fire()
 		return;
 	}
 	UE_LOG(LogSmashKarts, Verbose, TEXT("[Fire] pressed, has weapon: %s"), WeaponComponent->HasWeapon() ? TEXT("yes") : TEXT("no"));
+	const bool bHadWeapon = WeaponComponent->HasWeapon();
 	WeaponComponent->FirePressed();
+	if (bHadWeapon && !WeaponComponent->IsCharging())
+	{
+		KartFeedback::Fired(this); // charge throws kick on release instead
+	}
 }
 
 void AKartCharacter::FireReleased()
@@ -599,7 +606,12 @@ void AKartCharacter::FireReleased()
 		}
 		else
 		{
+			const bool bWasCharging = WeaponComponent->IsCharging();
 			WeaponComponent->FireReleased();
+			if (bWasCharging)
+			{
+				KartFeedback::Fired(this);
+			}
 		}
 	}
 }

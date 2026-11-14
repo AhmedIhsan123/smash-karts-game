@@ -62,3 +62,4 @@ The weapon panel (bottom right) shows uses left, or the time left for Machine Gu
 - **Can't connect by IP**: check the address, make sure the host is in the lobby, see HOSTING.md (firewall / VPN).
 - **"Your game version doesn't match"**: everyone needs the same zip.
 - **Low frame rate**: Esc → Settings → Quality: Low or Medium, and a smaller resolution.
+- **Screen shake bothers you**: Esc → Settings → Screen shake: Off.

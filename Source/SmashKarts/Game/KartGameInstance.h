@@ -44,6 +44,10 @@ public:
 	float GetMasterVolume() const;
 	void SetMasterVolume(float Volume);
 
+	/** Camera shakes on hits, explosions and firing (on by default). */
+	bool IsScreenShakeEnabled() const;
+	void SetScreenShakeEnabled(bool bEnabled);
+
 	FString GetLastJoinAddress() const;
 
 	// ---------- Sessions ----------

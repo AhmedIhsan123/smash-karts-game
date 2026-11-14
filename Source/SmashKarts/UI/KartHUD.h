@@ -32,6 +32,9 @@ public:
 	/** Floating number at a world location (damage you dealt). */
 	void AddDamageNumber(const FVector& WorldLocation, float Amount, bool bKilled);
 
+	/** Your kart took damage: brief red flash over the screen (stronger for bigger hits). */
+	void FlashDamage(float Amount);
+
 	void SetPauseMenuOpen(bool bOpen);
 	bool IsPauseMenuOpen() const { return bPauseOpen; }
 

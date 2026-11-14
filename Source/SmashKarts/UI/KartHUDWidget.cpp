@@ -12,6 +12,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -30,6 +31,13 @@ void UKartHUDWidget::BuildTree()
 {
 	UCanvasPanel* Root = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("Root"));
 	WidgetTree->RootWidget = Root;
+
+	// Red flash when your kart is hit: full screen, under the rest of the HUD, never blocks the mouse
+	DamageFlash = MakePanel(FLinearColor(0.9f, 0.05f, 0.02f, 0.f), FMargin(0.f));
+	DamageFlash->SetVisibility(ESlateVisibility::HitTestInvisible);
+	UCanvasPanelSlot* FlashSlot = Root->AddChildToCanvas(DamageFlash);
+	FlashSlot->SetAnchors(FAnchors(0.f, 0.f, 1.f, 1.f));
+	FlashSlot->SetOffsets(FMargin(0.f));
 
 	// Top centre: timer + phase
 	TimerText = MakeText(TEXT("3:00"), 40);
@@ -134,9 +142,21 @@ void UKartHUDWidget::RefreshKillFeed(double LocalNow)
 	}
 }
 
+void UKartHUDWidget::FlashDamage(float Amount)
+{
+	// 7 damage (bullet) ~0.15, 50 ~0.3, 100 (smash) 0.35
+	DamageFlashAlpha = FMath::Max(DamageFlashAlpha, FMath::Clamp(0.12f + Amount / 400.f, 0.12f, 0.35f));
+}
+
 void UKartHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
+
+	if (DamageFlash && (DamageFlashAlpha > 0.f || DamageFlash->GetBrushColor().A > 0.f))
+	{
+		DamageFlashAlpha = FMath::Max(0.f, DamageFlashAlpha - InDeltaTime * 1.4f);
+		DamageFlash->SetBrushColor(FLinearColor(0.9f, 0.05f, 0.02f, DamageFlashAlpha));
+	}
 
 	const double LocalNow = FPlatformTime::Seconds();
 	RefreshKillFeed(LocalNow);

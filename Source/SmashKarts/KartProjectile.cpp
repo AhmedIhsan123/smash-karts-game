@@ -1,4 +1,5 @@
 #include "KartProjectile.h"
+#include "KartFeedback.h"
 #include "KartWeaponData.h"
 #include "KartCharacter.h"
 #include "KartRules.h"
@@ -237,6 +238,7 @@ void AKartProjectile::Multicast_Explode_Implementation(FVector Location)
 {
 	SetActorHiddenInGame(true);
 	OnExplodeFX(Location);
+	KartFeedback::Explosion(this, Location, ExplosionFXScale);
 }
 
 void AKartProjectile::OnExplodeFX_Implementation(FVector Location)

@@ -1,4 +1,5 @@
 #include "KartTrap.h"
+#include "KartFeedback.h"
 #include "KartWeaponData.h"
 #include "KartCharacter.h"
 #include "KartStatusComponent.h"
@@ -331,11 +332,13 @@ void AKartTrap::Multicast_Detonate_Implementation(FVector Location)
 {
 	SetActorHiddenInGame(true);
 	OnDetonateFX(Location);
+	KartFeedback::Explosion(this, Location, DetonateFXScale);
 }
 
 void AKartTrap::Multicast_Catch_Implementation(FVector Location)
 {
 	OnDetonateFX(Location); // the trap stays visible
+	KartFeedback::Explosion(this, Location, DetonateFXScale);
 }
 
 void AKartTrap::OnDetonateFX_Implementation(FVector Location)

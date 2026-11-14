@@ -2,6 +2,8 @@
 
 
 #include "KartHealthComponent.h"
+#include "KartFeedback.h"
+#include "GameFramework/Pawn.h"
 #include "Net/UnrealNetwork.h"
 #include "SmashKarts.h"
 
@@ -46,6 +48,12 @@ void UKartHealthComponent::OnRep_Health(float OldHealth)
 {
 	const TCHAR* Machine = (GetOwner() && GetOwner()->HasAuthority()) ? TEXT("Server") : TEXT("Client");
 	UE_LOG(LogSmashKarts, Verbose, TEXT("[Health] %s | %s | %.0f -> %.0f"), *GetNameSafe(GetOwner()), Machine, OldHealth, Health);
+
+	// The player driving this kart feels the hit (shake + red flash); does nothing on other machines
+	if (Health < OldHealth)
+	{
+		KartFeedback::KartDamaged(Cast<APawn>(GetOwner()), OldHealth - Health);
+	}
 }
 
 float UKartHealthComponent::GetHealth() const

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
+#include "KartFeedback.h"
 #include "KartRules.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -222,6 +223,21 @@ bool FKartRoomCodeTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("too long"), IsRoomCode(TEXT("ABCDEF")));
 	TestFalse(TEXT("look-alike O"), IsRoomCode(TEXT("ABCDO")));
 	TestFalse(TEXT("empty"), IsRoomCode(FString()));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FKartExplosionShakeTest, "SmashKarts.Rules.ExplosionShake", KartTestFlags)
+bool FKartExplosionShakeTest::RunTest(const FString& Parameters)
+{
+	using KartFeedback::ExplosionShakeScale;
+	TestEqual(TEXT("no blast, no shake"), ExplosionShakeScale(0.f, 0.f), 0.f);
+	TestEqual(TEXT("rocket on top of you = its strength"), ExplosionShakeScale(0.6f, 0.f), 0.6f, 1.e-4f);
+	TestTrue(TEXT("bullet 5 m away is barely felt"), ExplosionShakeScale(0.15f, 500.f) < 0.05f);
+	TestEqual(TEXT("rocket out of reach (20 m)"), ExplosionShakeScale(0.6f, 2000.f), 0.f);
+	const float Nuke = ExplosionShakeScale(5.f, 1000.f);
+	TestTrue(TEXT("Nuke 10 m away shakes hard but capped"), Nuke > 1.1f && Nuke < 1.3f);
+	TestTrue(TEXT("Nuke reaches past 40 m"), ExplosionShakeScale(5.f, 4000.f) > 0.f);
+	TestTrue(TEXT("weaker with distance"), ExplosionShakeScale(2.f, 500.f) > ExplosionShakeScale(2.f, 1500.f));
 	return true;
 }
 
