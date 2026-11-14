@@ -2,6 +2,9 @@
 
 ## Unreleased (`finish-game`)
 
+### Tools — Nov 13
+- `Tools/Package.ps1`: one command makes the friend zip (`Build\KartArena_dev_v0.6.zip`, or `-Configuration Shipping` without debug symbols). It mirrors Config/Content/Source into `%LOCALAPPDATA%\KartArenaPackage` and builds, cooks and packages that copy, so it works while the editor is open. Adds HOW_TO_PLAY.md, HOSTING.md and Play_Windowed.bat, and says whether online play (EOS credentials) is inside.
+
 ### Phase 8, part 2 — Nov 13 (game feel)
 - **Camera shakes** (`KartFeedback`, perlin-noise shakes set up in C++, no assets): a jolt when your kart is hit (scaled by the damage), a rumble from explosions near you (reach and strength follow the blast size: bullets barely, rockets ~15 m, Sticky Bomb and death explosions harder, the Nuke ~45 m, capped), and a small kick when you fire (charge throws kick on release). A new hit restarts a shake instead of stacking.
 - **Red screen flash** when your kart is hit (stronger for bigger hits, gone in about a quarter second, under the rest of the HUD).

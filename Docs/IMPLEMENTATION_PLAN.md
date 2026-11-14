@@ -28,6 +28,7 @@ The internal module/repo name `SmashKarts` stays (renaming a UE module mid-proje
 - Assets: idempotent Python scripts in `Tools/EditorScripts/`, run headless with
   `UnrealEditor-Cmd.exe SmashKarts.uproject -run=pythonscript -script=<file> -unattended -nop4 -nosplash`.
 - Self-tests: automation tests (`SmashKarts.*`) + a scripted listen-server/client run (`SK.AutoTest`) read back from `Saved/Logs`.
+- Package: `powershell -ExecutionPolicy Bypass -File Tools\Package.ps1 [-Configuration Shipping]` → `Build\KartArena_dev_v<version>.zip`. Builds from a copy in `%LOCALAPPDATA%\KartArenaPackage`, so it works with the editor open (save assets first).
 - Commit after each working step on `finish-game`. Push/merge to `main` only after a passed checkpoint.
 
 ## Architecture (phase 1)

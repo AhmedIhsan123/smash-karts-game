@@ -11,6 +11,17 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Runs a build tool and prints its output. Windows PowerShell turns a native tool's stderr lines into errors,
+# which "Stop" would make fatal halfway through a build; check $LASTEXITCODE afterwards instead.
+function Invoke-Native {
+    param([string]$Exe, [string[]]$Arguments)
+    $Saved = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try { & $Exe @Arguments 2>&1 | ForEach-Object { "$_" } }
+    finally { $ErrorActionPreference = $Saved }
+}
+
 $Repo = Split-Path -Parent $PSScriptRoot
 $Copy = Join-Path $WorkDir "Project"
 $Archive = Join-Path $WorkDir "Archive"
@@ -31,13 +42,13 @@ foreach ($Dir in "Config", "Content", "Source") {
 $HasOnline = Test-Path (Join-Path $Copy "Config\Windows\WindowsEngine.ini")
 
 Write-Host "== Building the editor for the copy (the cook needs it)"
-& (Join-Path $Batch "Build.bat") SmashKartsEditor Win64 Development "-Project=$Copy\SmashKarts.uproject" -WaitMutex -FromMsBuild
+Invoke-Native (Join-Path $Batch "Build.bat") @("SmashKartsEditor", "Win64", "Development", "-Project=$Copy\SmashKarts.uproject", "-WaitMutex", "-FromMsBuild")
 if ($LASTEXITCODE -ne 0) { throw "Editor build failed ($LASTEXITCODE)" }
 
 Write-Host "== Build, cook, stage, pak ($Configuration)"
 if (Test-Path $Archive) { Remove-Item $Archive -Recurse -Force }
-& (Join-Path $Batch "RunUAT.bat") BuildCookRun "-project=$Copy\SmashKarts.uproject" -noP4 -platform=Win64 "-clientconfig=$Configuration" `
-    -build -cook -stage -pak -iostore -archive "-archivedirectory=$Archive" -utf8output -unattended
+Invoke-Native (Join-Path $Batch "RunUAT.bat") @("BuildCookRun", "-project=$Copy\SmashKarts.uproject", "-noP4", "-platform=Win64", "-clientconfig=$Configuration",
+    "-build", "-cook", "-stage", "-pak", "-iostore", "-archive", "-archivedirectory=$Archive", "-utf8output", "-unattended")
 if ($LASTEXITCODE -ne 0) { throw "BuildCookRun failed ($LASTEXITCODE)" }
 
 $Game = Join-Path $Archive "Windows"
